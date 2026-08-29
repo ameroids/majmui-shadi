@@ -96,10 +96,6 @@ export default function AddInviteePage() {
   }
 
   const handleSaveSelected = async () => {
-    if (selectedIds.size === 0) {
-      showToast('Select at least one family member to invite.', 'error')
-      return
-    }
     setSaving(true)
     try {
       const selectedMembers = family.members.filter((m) => selectedIds.has(m.id))

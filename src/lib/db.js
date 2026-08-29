@@ -191,6 +191,25 @@ export async function getInviteesByUser(userId) {
 }
 
 export async function saveInvitees(userId, family, selectedMembers) {
+  // Find members of this family that were NOT selected and remove them from invitees
+  const selectedMemberIds = new Set(selectedMembers.map(m => m.id))
+  const unselectedMemberIds = (family.members || [])
+    .filter(m => !selectedMemberIds.has(m.id))
+    .map(m => m.id)
+
+  if (unselectedMemberIds.length > 0) {
+    await supabase
+      .from('invitees')
+      .delete()
+      .eq('bride_groom_user_id', userId)
+      .eq('family_id', family.id)
+      .in('member_id', unselectedMemberIds)
+  }
+
+  if (selectedMembers.length === 0) {
+    return getInviteesByUser(userId)
+  }
+
   const inviteeRows = selectedMembers.map(member => ({
     bride_groom_user_id: userId,
     family_id: family.id,
