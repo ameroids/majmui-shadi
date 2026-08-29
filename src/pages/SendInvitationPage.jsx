@@ -49,8 +49,15 @@ export default function SendInvitationPage() {
   useEffect(() => { loadAll() }, []) // eslint-disable-line
 
   const handleOpenWhatsapp = async (invitation) => {
-    const link = buildWhatsappLink(invitation.recipient_mobile, invitation.generated_message)
-    window.open(link, '_blank', 'noopener,noreferrer')
+    if (window.Android && window.Android.shareToWhatsApp) {
+      // Use Android native bridge (which can attach images)
+      window.Android.shareToWhatsApp(invitation.recipient_mobile, invitation.generated_message)
+    } else {
+      // Fallback to standard web intent
+      const link = buildWhatsappLink(invitation.recipient_mobile, invitation.generated_message)
+      window.open(link, '_blank', 'noopener,noreferrer')
+    }
+    
     if (invitation.status === 'Ready') {
       await updateInvitationStatus(invitation.id, 'WhatsApp Opened')
       loadAll()
@@ -369,9 +376,14 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
   )
 
   function buildLinkAndOpen(mobile, msg) {
-    const link = buildWhatsappLink(mobile, msg)
-    window.open(link, '_blank', 'noopener,noreferrer')
-    return link
+    if (window.Android && window.Android.shareToWhatsApp) {
+      window.Android.shareToWhatsApp(mobile, msg)
+      return null
+    } else {
+      const link = buildWhatsappLink(mobile, msg)
+      window.open(link, '_blank', 'noopener,noreferrer')
+      return link
+    }
   }
 
   function WizardFooter() {
