@@ -1,0 +1,466 @@
+import { supabase } from './supabaseClient'
+
+export function resetDemoData() {
+  console.log('Demo data is removed. Operating on live Supabase.')
+}
+
+// --------------------------- Auth -----------------------------------------
+
+export async function authenticate(username, password, expectedRoles) {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('username', username.trim())
+      .eq('password_hash', password)
+      .maybeSingle()
+
+    if (error) {
+      return { user: null, error: `DB Error: ${error.message || JSON.stringify(error)}` }
+    }
+    if (!user) {
+      return { user: null, error: 'Incorrect username or password.' }
+    }
+
+    if (expectedRoles && !expectedRoles.includes(user.role)) {
+      return { user: null, error: 'This login panel does not match this account type.' }
+    }
+    
+    const { password_hash: _pw, ...safeUser } = user
+    
+    // Fetch partner name for WhatsApp template if bride/groom
+    if (safeUser.role === 'bride' || safeUser.role === 'groom') {
+      const match = safeUser.username.match(/^(dulha|dulhan)(\d+)$/i)
+      if (match) {
+        const prefix = match[1].toLowerCase() === 'dulha' ? 'Dulhan' : 'Dulha'
+        const partnerUsername = `${prefix}${match[2]}`
+        const { data: partner } = await supabase
+          .from('users')
+          .select('display_name')
+          .ilike('username', partnerUsername)
+          .maybeSingle()
+          
+        if (partner) {
+          safeUser.partner_name = partner.display_name
+        }
+      }
+    }
+    
+    return { user: safeUser, error: null }
+  } catch (err) {
+    return { user: null, error: `App Error: ${err.message}` }
+  }
+}
+
+// --------------------------- Events -----------------------------------------
+
+export async function getEvents() {
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('active', true)
+  if (error) {
+    console.error('Error fetching events:', error)
+    return []
+  }
+  return events
+}
+
+// --------------------------- Families (master data, read-mostly) -----------
+
+export async function searchFamilyByHofIts(hofIts) {
+  const { data: family, error } = await supabase
+    .from('families')
+    .select('id, hof_its, surname, is_manual, family_members(*)')
+    .eq('hof_its', hofIts.trim())
+    .maybeSingle()
+    
+  if (!error && family) {
+    return {
+      id: family.id,
+      hof_its: family.hof_its,
+      surname: family.surname,
+      is_manual: family.is_manual,
+      members: family.family_members,
+    }
+  }
+  return null
+}
+
+export async function createManualFamily({ hof_its, surname, members }) {
+  const { data: family, error: famError } = await supabase
+    .from('families')
+    .insert([{ hof_its, surname, is_manual: true }])
+    .select()
+    .single()
+    
+  if (famError) throw famError
+  
+  const memberRows = members.map(m => ({
+    family_id: family.id,
+    member_its: m.member_its || crypto.randomUUID(),
+    full_name: m.full_name,
+    mobile: m.mobile || null,
+    relationship: m.relationship || null,
+    gender: m.gender || null
+  }))
+  
+  const { data: insertedMembers, error: memError } = await supabase
+    .from('family_members')
+    .insert(memberRows)
+    .select()
+    
+  if (memError) throw memError
+  
+  return {
+    ...family,
+    members: insertedMembers
+  }
+}
+
+export async function updateManualFamily(familyId, { hof_its, surname, members }) {
+  // Update family
+  const { data: family, error: famError } = await supabase
+    .from('families')
+    .update({ hof_its, surname })
+    .eq('id', familyId)
+    .select()
+    .single()
+    
+  if (famError) throw famError
+
+  // Fetch existing members to figure out what to delete/update
+  const { data: existingMembers } = await supabase
+    .from('family_members')
+    .select('id')
+    .eq('family_id', familyId)
+
+  const existingIds = new Set(existingMembers.map(m => m.id))
+  
+  // Upsert members manually
+  for (const m of members) {
+    const memberData = {
+      family_id: familyId,
+      member_its: m.member_its || m.id || crypto.randomUUID(),
+      full_name: m.full_name,
+      mobile: m.mobile || null,
+      relationship: m.relationship || null,
+      gender: m.gender || null
+    }
+    
+    // If the member came with an ID and it exists, update it
+    if (m.id && existingIds.has(m.id)) {
+      await supabase.from('family_members').update(memberData).eq('id', m.id)
+      existingIds.delete(m.id)
+    } else {
+      // New member added during edit
+      await supabase.from('family_members').insert([memberData])
+    }
+  }
+  
+  // Delete members that were removed during edit
+  if (existingIds.size > 0) {
+    await supabase.from('family_members').delete().in('id', Array.from(existingIds))
+  }
+  
+  // Return updated family with its members
+  return searchFamilyByHofIts(hof_its)
+}
+
+export async function getAllFamilies() {
+  const { data: families, error } = await supabase
+    .from('families')
+    .select('*, family_members(id)')
+  if (error) return []
+  return families.map(f => ({
+    ...f,
+    members: f.family_members || []
+  }))
+}
+
+// --------------------------- Invitees ---------------------------------------
+
+export async function getInviteesByUser(userId) {
+  const { data: invitees, error } = await supabase
+    .from('invitees')
+    .select('*')
+    .eq('bride_groom_user_id', userId)
+  
+  if (error) return []
+  return invitees
+}
+
+export async function saveInvitees(userId, family, selectedMembers) {
+  const inviteeRows = selectedMembers.map(member => ({
+    bride_groom_user_id: userId,
+    family_id: family.id,
+    member_id: member.id,
+    hof_its: family.hof_its,
+    member_its: member.member_its || member.id,
+    full_name: member.full_name,
+    surname: family.surname,
+    mobile: member.mobile || null,
+    relationship: member.relationship || null,
+    gender: member.gender || 'Unknown',
+    selected: true,
+    invitation_status: 'Not Invited'
+  }))
+  
+  const { error } = await supabase
+    .from('invitees')
+    .upsert(inviteeRows, { onConflict: 'bride_groom_user_id, member_id' })
+
+  if (error) throw error
+  return getInviteesByUser(userId)
+}
+
+export async function removeInvitee(userId, inviteeId) {
+  await supabase
+    .from('invitees')
+    .delete()
+    .eq('id', inviteeId)
+    .eq('bride_groom_user_id', userId)
+}
+
+export async function getFamiliesWithInviteesForUser(userId) {
+  const invitees = await getInviteesByUser(userId)
+  
+  const byFamily = new Map()
+  invitees.forEach((invitee) => {
+    if (!byFamily.has(invitee.family_id)) {
+      byFamily.set(invitee.family_id, {
+        family_id: invitee.family_id,
+        hof_its: invitee.hof_its,
+        surname: invitee.surname,
+        members: [],
+      })
+    }
+    byFamily.get(invitee.family_id).members.push(invitee)
+  })
+  return Array.from(byFamily.values()).sort((a, b) => a.surname.localeCompare(b.surname))
+}
+
+// --------------------------- Invitations -------------------------------------
+
+export async function createInvitation(userId, payload) {
+  const { data: record, error } = await supabase
+    .from('invitations')
+    .insert([{
+      bride_groom_user_id: userId,
+      family_id: payload.family_id,
+      whatsapp_recipient_member_id: payload.recipient.member_id,
+      status: 'Ready',
+      generated_message: payload.message,
+    }])
+    .select()
+    .single()
+    
+  if (error) throw error
+  
+  const memberEventJunctions = payload.member_events.map(me => ({
+    invitation_id: record.id,
+    invitee_id: me.member_id,
+    event_id: me.event_id
+  }))
+  await supabase.from('invitation_member_events').insert(memberEventJunctions)
+  
+  const inviteeIds = [...new Set(payload.member_events.map(me => me.member_id))]
+  
+  await supabase
+    .from('invitees')
+    .update({ invitation_status: 'Ready' })
+    .in('id', inviteeIds)
+
+  return {
+    ...record,
+    surname: payload.surname,
+    hof_its: payload.hof_its,
+    recipient_name: payload.recipient.full_name,
+    recipient_mobile: payload.recipient.mobile,
+  }
+}
+
+export async function updateInvitationStatus(invitationId, status) {
+  const updateData = { status }
+  if (status === 'Sent') updateData.sent_at = new Date().toISOString()
+  
+  const { data: invitation, error } = await supabase
+    .from('invitations')
+    .update(updateData)
+    .eq('id', invitationId)
+    .select()
+    .single()
+    
+  if (error) throw error
+  
+  const { data: junctions } = await supabase
+    .from('invitation_member_events')
+    .select('invitee_id')
+    .eq('invitation_id', invitationId)
+    
+  if (junctions && junctions.length > 0) {
+    const inviteeIds = [...new Set(junctions.map(j => j.invitee_id))]
+    await supabase
+      .from('invitees')
+      .update({ invitation_status: status })
+      .in('id', inviteeIds)
+  }
+  
+  return invitation
+}
+
+export async function updateInvitationMessage(invitationId, message) {
+  const { data: invitation, error } = await supabase
+    .from('invitations')
+    .update({ generated_message: message })
+    .eq('id', invitationId)
+    .select()
+    .single()
+    
+  if (error) throw error
+  return invitation
+}
+
+export async function getInvitationsByUser(userId) {
+  const { data: invitations, error } = await supabase
+    .from('invitations')
+    .select(`
+      *,
+      families (surname, hof_its),
+      family_members (full_name, mobile),
+      invitation_member_events ( invitees (id, full_name), events (id, event_name) )
+    `)
+    .eq('bride_groom_user_id', userId)
+    .order('created_at', { ascending: false })
+    
+  if (error) return []
+  
+  return invitations.map(inv => {
+    const uniqueInvitees = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.invitees?.id, ime.invitees])).values())
+    const uniqueEvents = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.events?.id, ime.events])).values())
+
+    return {
+      ...inv,
+      surname: inv.families?.surname,
+      hof_its: inv.families?.hof_its,
+      recipient_name: inv.family_members?.full_name,
+      recipient_mobile: inv.family_members?.mobile,
+      invitee_ids: uniqueInvitees.map(i => i?.id).filter(Boolean),
+      invitee_names: uniqueInvitees.map(i => i?.full_name).filter(Boolean).join(', '),
+      event_ids: uniqueEvents.map(e => e?.id).filter(Boolean),
+      event_names: uniqueEvents.map(e => e?.event_name).filter(Boolean).join(', '),
+      member_events: inv.invitation_member_events,
+    }
+  })
+}
+
+export async function getAllInvitations() {
+  const { data: invitations, error } = await supabase
+    .from('invitations')
+    .select(`
+      *,
+      users (display_name, username),
+      families (surname, hof_its),
+      family_members (full_name, mobile),
+      invitation_member_events ( invitees (id, full_name), events (id, event_name) )
+    `)
+    .order('created_at', { ascending: false })
+    
+  if (error) return []
+  
+  return invitations.map(inv => {
+    const uniqueInvitees = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.invitees?.id, ime.invitees])).values())
+    const uniqueEvents = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.events?.id, ime.events])).values())
+
+    return {
+      ...inv,
+      invited_by: inv.users?.display_name || inv.users?.username || 'Unknown',
+      surname: inv.families?.surname,
+      hof_its: inv.families?.hof_its,
+      recipient_name: inv.family_members?.full_name,
+      recipient_mobile: inv.family_members?.mobile,
+      invitee_ids: uniqueInvitees.map(i => i?.id).filter(Boolean),
+      invitee_names: uniqueInvitees.map(i => i?.full_name).filter(Boolean).join(', '),
+      event_ids: uniqueEvents.map(e => e?.id).filter(Boolean),
+      event_names: uniqueEvents.map(e => e?.event_name).filter(Boolean).join(', '),
+      member_events: inv.invitation_member_events,
+    }
+  })
+}
+
+export async function getAllInvitees() {
+  const { data: invitees, error } = await supabase
+    .from('invitees')
+    .select('*')
+  if (error) return []
+  return invitees
+}
+
+// --------------------------- Stats -------------------------------------------
+
+export async function getUserStats(userId) {
+  const invitees = await getInviteesByUser(userId)
+  const invitations = await getInvitationsByUser(userId)
+  
+  const families = new Set(invitees.map((i) => i.family_id))
+  return {
+    totalInvitees: invitees.length,
+    totalFamilies: families.size,
+    ready: invitations.filter((i) => i.status === 'Ready' || i.status === 'WhatsApp Opened').length,
+    sent: invitations.filter((i) => i.status === 'Sent').length,
+  }
+}
+
+export async function getAdminStats() {
+  const { count: bridesCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'bride')
+  const { count: groomsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'groom')
+  const { count: familiesCount } = await supabase.from('families').select('*', { count: 'exact', head: true })
+  const { count: inviteesCount } = await supabase.from('invitees').select('*', { count: 'exact', head: true })
+  
+  const invitations = await getAllInvitations()
+  const { data: inviteesFamilies } = await supabase.from('invitees').select('family_id')
+  
+  const familyIds = new Set((inviteesFamilies || []).map((i) => i.family_id))
+  
+  return {
+    totalBrides: bridesCount || 0,
+    totalGrooms: groomsCount || 0,
+    totalFamilies: familiesCount || 0,
+    totalFamiliesInvited: familyIds.size,
+    totalInvitees: inviteesCount || 0,
+    totalInvitations: invitations.length,
+    sentInvitations: invitations.filter((i) => i.status === 'Sent').length,
+    pendingInvitations: invitations.filter((i) => i.status !== 'Sent').length,
+  }
+}
+
+export async function resetUserData(userId) {
+  // Due to cascade deletes on invitation_members, deleting invitations and invitees is sufficient
+  const { error: invErr } = await supabase.from('invitations').delete().eq('bride_groom_user_id', userId)
+  if (invErr) throw invErr
+  
+  const { error: reqErr } = await supabase.from('invitees').delete().eq('bride_groom_user_id', userId)
+  if (reqErr) throw reqErr
+}
+
+export async function deleteAllFamilies() {
+  const { error } = await supabase.from('families').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Deletes all rows safely
+  if (error) throw error
+}
+
+export async function getUsersByRole(role) {
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, username, display_name, role, created_at')
+    .eq('role', role)
+  if (error) return []
+  return users
+}
+
+export async function getAllUsersSafe() {
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, username, display_name, role, created_at')
+  if (error) return []
+  return users
+}

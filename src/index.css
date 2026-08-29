@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #FAF6EF;
+  color: #1C1A17;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #E4CE8E;
+  color: #0F3630;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C9A24B transparent;
+}
+
+:focus-visible {
+  outline: 2px solid #C9A24B;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Repeating geometric arch motif used as the app's signature divider */
+.arch-row {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.arch-row svg {
+  flex: none;
+}
+
+.paper-texture {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(15, 54, 48, 0.05) 1px, transparent 0);
+  background-size: 18px 18px;
+}
+
+.card-surface {
+}
+
+.tap-target {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #C9A24B;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
