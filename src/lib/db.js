@@ -417,6 +417,84 @@ export async function getAllInvitees() {
 
 // --------------------------- Stats -------------------------------------------
 
+export async function getEventGuestData() {
+  // Fetch all invitees joined with the user who invited them and their events
+  const { data: invitees, error } = await supabase
+    .from('invitees')
+    .select('*, users (display_name, username), invitation_member_events(event_id)')
+    
+  if (error) return {}
+
+  // We want to group everything by event_id, then by member_id
+  const eventMap = new Map() // event_id -> map(member_id -> array of invitee records)
+
+  for (const inv of invitees) {
+    if (!inv.invitation_member_events || inv.invitation_member_events.length === 0) {
+      continue // Skip members who haven't actually been invited to an event yet
+    }
+    
+    const eventIds = inv.invitation_member_events.map(e => e.event_id)
+    for (const eid of eventIds) {
+      if (!eventMap.has(eid)) eventMap.set(eid, new Map())
+      const memberMap = eventMap.get(eid)
+      
+      if (!memberMap.has(inv.member_id)) {
+        memberMap.set(inv.member_id, [])
+      }
+      memberMap.get(inv.member_id).push(inv)
+    }
+  }
+
+  const result = {}
+
+  for (const [eventId, memberMap] of eventMap.entries()) {
+    const actualGuests = []
+    const uniqueGuests = []
+    const duplicateGuests = []
+
+    for (const [member_id, group] of memberMap.entries()) {
+      const member = group[0]
+      const invitedByList = group.map(g => ({
+        name: g.users?.display_name || g.users?.username || 'Unknown',
+        invitee_id: g.id
+      }))
+
+      const guestData = {
+        member_id: member.member_id,
+        member_its: member.member_its,
+        full_name: member.full_name,
+        surname: member.surname,
+        invitedByList: invitedByList
+      }
+
+      actualGuests.push(guestData)
+
+      if (group.length === 1) {
+        uniqueGuests.push(guestData)
+      } else if (group.length > 1) {
+        duplicateGuests.push(guestData)
+      }
+    }
+
+    // Sort by ITS number
+    const sortByIts = (a, b) => (a.member_its || '').localeCompare(b.member_its || '')
+    actualGuests.sort(sortByIts)
+    uniqueGuests.sort(sortByIts)
+    duplicateGuests.sort(sortByIts)
+
+    result[eventId] = {
+      totalActual: actualGuests.length,
+      totalUnique: uniqueGuests.length,
+      totalDuplicates: duplicateGuests.length,
+      actualGuests,
+      uniqueGuests,
+      duplicateGuests
+    }
+  }
+
+  return result
+}
+
 export async function getUserStats(userId) {
   const invitees = await getInviteesByUser(userId)
   const invitations = await getInvitationsByUser(userId)

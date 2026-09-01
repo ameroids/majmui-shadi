@@ -3,11 +3,14 @@ import DashboardLayout from '../components/DashboardLayout'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
-import { Input } from '../components/ui/Field'
+import { Input, Select } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
-import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations } from '../lib/db'
+import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEvents } from '../lib/db'
 
-const NAV = [{ path: '/tnc', label: 'Reports & Search', icon: '⌕' }]
+const TNC_NAV = [
+  { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
+  { path: '/tnc/reports', label: 'Event Reports', icon: '📊' }
+]
 
 export default function TNCDashboard() {
   const [loading, setLoading] = useState(true)
@@ -15,14 +18,22 @@ export default function TNCDashboard() {
   const [families, setFamilies] = useState([])
   const [invitees, setInvitees] = useState([])
   const [invitations, setInvitations] = useState([])
+  const [events, setEvents] = useState([])
+  const [filterEventId, setFilterEventId] = useState('')
   const [query, setQuery] = useState('')
 
   useEffect(() => {
     let alive = true
     async function load() {
-      const [s, fam, inv, invt] = await Promise.all([getAdminStats(), getAllFamilies(), getAllInvitees(), getAllInvitations()])
+      const [s, fam, inv, invt, evts] = await Promise.all([
+        getAdminStats(), 
+        getAllFamilies(), 
+        getAllInvitees(), 
+        getAllInvitations(),
+        getEvents()
+      ])
       if (!alive) return
-      setStats(s); setFamilies(fam); setInvitees(inv); setInvitations(invt)
+      setStats(s); setFamilies(fam); setInvitees(inv); setInvitations(invt); setEvents(evts)
       setLoading(false)
     }
     load()
@@ -38,7 +49,7 @@ export default function TNCDashboard() {
     : []
 
   return (
-    <DashboardLayout navItems={NAV} activePath="/tnc" roleLabel="TNC">
+    <DashboardLayout navItems={TNC_NAV} activePath="/tnc" roleLabel="TNC">
       <h1 className="font-display text-3xl font-semibold text-emerald-deep mb-1">TNC Dashboard</h1>
       <p className="text-sm text-ink/60 mb-7">Read-only visibility into families, invitees and invitation status.</p>
 
@@ -120,29 +131,72 @@ export default function TNCDashboard() {
           </Card>
 
           <Card className="p-5 sm:p-6">
-            <h2 className="font-display text-xl font-semibold text-emerald-deep mb-4">All invitation records</h2>
-            {invitations.length === 0 ? <EmptyState icon="✉" title="No invitations recorded yet" /> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[640px]">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
-                      <th className="py-2 px-2">Family</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Invited By</th><th className="py-2 px-2">Events</th><th className="py-2 px-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invitations.map((i) => (
-                      <tr key={i.id} className="border-b border-ivory-line last:border-0">
-                        <td className="py-2.5 px-2 font-medium">{i.surname}</td>
-                        <td className="py-2.5 px-2">{i.invitee_ids.length}</td>
-                        <td className="py-2.5 px-2 font-medium text-emerald-deep">{i.invited_by}</td>
-                        <td className="py-2.5 px-2">{i.event_names}</td>
-                        <td className="py-2.5 px-2"><Badge tone={i.status}>{i.status}</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="font-display text-xl font-semibold text-emerald-deep">All invitation records</h2>
+              <div className="w-full sm:w-64">
+                <Select value={filterEventId} onChange={e => setFilterEventId(e.target.value)}>
+                  <option value="">All Events</option>
+                  {events.map(e => <option key={e.id} value={e.id}>{e.event_name}</option>)}
+                </Select>
               </div>
-            )}
+            </div>
+
+            {(() => {
+              const displayInvitations = filterEventId 
+                ? invitations.filter(inv => inv.event_ids.includes(filterEventId))
+                : invitations;
+
+              // Calculate exact total people invited for the current filtered view
+              const totalPeople = displayInvitations.reduce((sum, inv) => {
+                if (filterEventId) {
+                  const uniqueForEvent = new Set(
+                    (inv.member_events || [])
+                      .filter(me => me.events?.id === filterEventId)
+                      .map(me => me.invitees?.id)
+                  );
+                  return sum + uniqueForEvent.size;
+                }
+                return sum + inv.invitee_ids.length;
+              }, 0);
+
+              return displayInvitations.length === 0 ? (
+                <EmptyState icon="✉" title="No invitations recorded yet" /> 
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-emerald-deep mb-3">
+                    Total People: {totalPeople}
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[640px]">
+                      <thead>
+                        <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
+                          <th className="py-2 px-2">Family</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Invited By</th><th className="py-2 px-2">Events</th><th className="py-2 px-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayInvitations.map((i) => {
+                          const memberCount = filterEventId 
+                            ? new Set((i.member_events || []).filter(me => me.events?.id === filterEventId).map(me => me.invitees?.id)).size
+                            : i.invitee_ids.length;
+                          
+                          if (memberCount === 0) return null;
+
+                          return (
+                            <tr key={i.id} className="border-b border-ivory-line last:border-0">
+                              <td className="py-2.5 px-2 font-medium">{i.surname}</td>
+                              <td className="py-2.5 px-2">{memberCount}</td>
+                              <td className="py-2.5 px-2 font-medium text-emerald-deep">{i.invited_by}</td>
+                              <td className="py-2.5 px-2">{i.event_names}</td>
+                              <td className="py-2.5 px-2"><Badge tone={i.status}>{i.status}</Badge></td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )
+            })()}
           </Card>
         </>
       )}

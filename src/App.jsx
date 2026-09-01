@@ -8,6 +8,7 @@ import AddInviteePage from './pages/AddInviteePage'
 import SendInvitationPage from './pages/SendInvitationPage'
 import AdminDashboard from './pages/AdminDashboard'
 import TNCDashboard from './pages/TNCDashboard'
+import TNCEventReportsPage from './pages/TNCEventReportsPage'
 
 export default function App() {
   return (
@@ -44,7 +45,10 @@ export default function App() {
             } />
 
             <Route path="/tnc" element={
-              <ProtectedRoute roles={['tnc']}><TNCDashboard /></ProtectedRoute>
+              <ProtectedRoute roles={['tnc', 'admin']}><TNCDashboard /></ProtectedRoute>
+            } />
+            <Route path="/tnc/reports" element={
+              <ProtectedRoute roles={['tnc', 'admin']}><TNCEventReportsPage /></ProtectedRoute>
             } />
 
             <Route path="*" element={<Navigate to="/" replace />} />
