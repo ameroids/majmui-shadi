@@ -9,6 +9,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { searchFamilyByHofIts, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee } from '../lib/db'
+import Modal from '../components/ui/Modal'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -34,6 +35,7 @@ export default function AddInviteePage() {
   const [saving, setSaving] = useState(false)
 
   const [showManualForm, setShowManualForm] = useState(false)
+  const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
   const [editingFamilyId, setEditingFamilyId] = useState(null)
   const [manualSurname, setManualSurname] = useState('')
   const [manualHofIts, setManualHofIts] = useState('')
@@ -69,6 +71,16 @@ export default function AddInviteePage() {
     } else {
       eOrIts?.preventDefault()
     }
+
+    if (user.can_add_invitees === false) {
+      setLockedModal({
+        open: true,
+        title: 'Action Locked',
+        message: 'You cannot add new invitees. Kindly contact your TNC admin for assistance.'
+      })
+      return
+    }
+
     if (!searchIts.trim()) return
     setSearching(true)
     setSearched(false)
@@ -231,7 +243,17 @@ export default function AddInviteePage() {
         {!searching && searched && !family && !showManualForm && (
           <div className="mt-5 rounded-xl border border-dashed border-ivory-line bg-ivory-soft p-5 text-center">
             <p className="text-sm font-medium text-ink/70">No family found for ITS "{its}".</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowManualForm(true)}>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => {
+              if (user.can_add_invitees === false) {
+                setLockedModal({
+                  open: true,
+                  title: 'Action Locked',
+                  message: 'You cannot add new invitees. Kindly contact your TNC admin for assistance.'
+                })
+                return
+              }
+              setShowManualForm(true)
+            }}>
               Create Invitee Manually
             </Button>
           </div>
@@ -304,6 +326,23 @@ export default function AddInviteePage() {
           ))}
         </div>
       )}
+      <Modal 
+        open={lockedModal.open} 
+        onClose={() => setLockedModal({ ...lockedModal, open: false })}
+        title={lockedModal.title}
+        size="sm"
+        footer={
+          <Button onClick={() => setLockedModal({ ...lockedModal, open: false })} className="w-full sm:w-auto">
+            Got it
+          </Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-4">
+          <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-3xl mb-4">🔒</div>
+          <p className="text-base text-ink/80">{lockedModal.message}</p>
+        </div>
+      </Modal>
+
     </DashboardLayout>
   )
 }

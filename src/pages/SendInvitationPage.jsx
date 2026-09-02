@@ -32,6 +32,7 @@ export default function SendInvitationPage() {
   const [invitations, setInvitations] = useState([])
   const [loading, setLoading] = useState(true)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
 
   const loadAll = async () => {
     setLoading(true)
@@ -73,14 +74,24 @@ export default function SendInvitationPage() {
   return (
     <DashboardLayout navItems={NAV} activePath="/dashboard/send-invitation" roleLabel={user.role}>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
+        <div className="flex-1">
           <h1 className="font-display text-3xl font-semibold text-emerald-deep">Send Invitation</h1>
           <p className="text-sm text-ink/60 mt-1 max-w-xl">
             One WhatsApp message per family. Choose a representative to receive it — the
             message will still name every invited member of that family.
           </p>
         </div>
-        <Button onClick={() => setWizardOpen(true)} size="lg">+ New Invitation</Button>
+        <Button onClick={() => {
+          if (user.can_send_invitations === false) {
+            setLockedModal({
+              open: true,
+              title: 'Action Locked',
+              message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
+            })
+            return
+          }
+          setWizardOpen(true)
+        }} size="lg">+ New Invitation</Button>
       </div>
 
       {loading ? (
@@ -120,11 +131,31 @@ export default function SendInvitationPage() {
                     </td>
                     <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
                     <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                      <Button variant="whatsapp" size="sm" onClick={() => handleOpenWhatsapp(inv)}>
+                      <Button variant="whatsapp" size="sm" onClick={() => {
+                        if (user.can_send_invitations === false) {
+                          setLockedModal({
+                            open: true,
+                            title: 'Action Locked',
+                            message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                          })
+                          return
+                        }
+                        handleOpenWhatsapp(inv)
+                      }}>
                         {inv.status === 'Sent' ? 'Reopen' : 'Send on WhatsApp'}
                       </Button>
                       {inv.status !== 'Sent' && (
-                        <Button variant="outline" size="sm" onClick={() => handleMarkSent(inv)}>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          if (user.can_send_invitations === false) {
+                            setLockedModal({
+                              open: true,
+                              title: 'Action Locked',
+                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                            })
+                            return
+                          }
+                          handleMarkSent(inv)
+                        }}>
                           Mark Sent
                         </Button>
                       )}
@@ -152,6 +183,23 @@ export default function SendInvitationPage() {
           loadAll()
         }}
       />
+
+      <Modal 
+        open={lockedModal.open} 
+        onClose={() => setLockedModal({ ...lockedModal, open: false })}
+        title={lockedModal.title}
+        size="sm"
+        footer={
+          <Button onClick={() => setLockedModal({ ...lockedModal, open: false })} className="w-full sm:w-auto">
+            Got it
+          </Button>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-4">
+          <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-3xl mb-4">🔒</div>
+          <p className="text-base text-ink/80">{lockedModal.message}</p>
+        </div>
+      </Modal>
     </DashboardLayout>
   )
 }

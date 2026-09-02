@@ -25,7 +25,7 @@ export function Input({ className = '', error, ...props }) {
 export function Select({ className = '', error, children, ...props }) {
   return (
     <select
-      className={`w-full rounded-lg border ${error ? 'border-wine' : 'border-ivory-line'} bg-white px-3.5 py-2.5 text-sm text-ink focus:border-gold focus:ring-1 focus:ring-gold outline-none transition`}
+      className={`w-full rounded-lg border ${error ? 'border-wine' : 'border-ivory-line'} bg-white px-3.5 py-2.5 text-sm text-ink focus:border-gold focus:ring-1 focus:ring-gold outline-none transition ${className}`}
       {...props}
     >
       {children}

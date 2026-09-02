@@ -16,6 +16,8 @@ create table if not exists users (
   password_hash text not null,
   role text not null check (role in ('bride', 'groom', 'admin', 'tnc')),
   display_name text not null,
+  can_add_invitees boolean not null default true,
+  can_send_invitations boolean not null default true,
   created_at timestamptz not null default now()
 );
 

@@ -52,6 +52,18 @@ export async function authenticate(username, password, expectedRoles) {
   }
 }
 
+// --------------------------- Users (Admin) ----------------------------------
+
+export async function updateUserPermissions(userId, updates) {
+  const { error } = await supabase
+    .from('users')
+    .update(updates) // { can_add_invitees: bool, can_send_invitations: bool }
+    .eq('id', userId)
+
+  if (error) throw error
+  return true
+}
+
 // --------------------------- Events -----------------------------------------
 
 export async function getEvents() {
@@ -184,6 +196,16 @@ export async function getInviteesByUser(userId) {
   const { data: invitees, error } = await supabase
     .from('invitees')
     .select('*')
+    .eq('bride_groom_user_id', userId)
+  
+  if (error) return []
+  return invitees
+}
+
+export async function getUserInviteesWithEvents(userId) {
+  const { data: invitees, error } = await supabase
+    .from('invitees')
+    .select('*, invitation_member_events(event_id)')
     .eq('bride_groom_user_id', userId)
   
   if (error) return []
@@ -415,7 +437,18 @@ export async function getAllInvitees() {
   return invitees
 }
 
-// --------------------------- Stats -------------------------------------------
+export async function getBridesAndGrooms() {
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, username, display_name, role')
+    .in('role', ['bride', 'groom'])
+    .order('display_name', { ascending: true })
+  
+  if (error) return []
+  return users
+}
+
+// --------------------------- Master Data (Families & Events) -------------------------------------------
 
 export async function getEventGuestData() {
   // Fetch all invitees joined with the user who invited them and their events
@@ -449,7 +482,7 @@ export async function getEventGuestData() {
 
   for (const [eventId, memberMap] of eventMap.entries()) {
     const actualGuests = []
-    const uniqueGuests = []
+    const totalGuests = []
     const duplicateGuests = []
 
     for (const [member_id, group] of memberMap.entries()) {
@@ -469,9 +502,20 @@ export async function getEventGuestData() {
 
       actualGuests.push(guestData)
 
-      if (group.length === 1) {
-        uniqueGuests.push(guestData)
-      } else if (group.length > 1) {
+      group.forEach(g => {
+        totalGuests.push({
+          member_id: member.member_id,
+          member_its: member.member_its,
+          full_name: member.full_name,
+          surname: member.surname,
+          invitedByList: [{
+            name: g.users?.display_name || g.users?.username || 'Unknown',
+            invitee_id: g.id
+          }]
+        })
+      })
+
+      if (group.length > 1) {
         duplicateGuests.push(guestData)
       }
     }
@@ -479,15 +523,15 @@ export async function getEventGuestData() {
     // Sort by ITS number
     const sortByIts = (a, b) => (a.member_its || '').localeCompare(b.member_its || '')
     actualGuests.sort(sortByIts)
-    uniqueGuests.sort(sortByIts)
+    totalGuests.sort(sortByIts)
     duplicateGuests.sort(sortByIts)
 
     result[eventId] = {
       totalActual: actualGuests.length,
-      totalUnique: uniqueGuests.length,
+      totalTotal: totalGuests.length,
       totalDuplicates: duplicateGuests.length,
       actualGuests,
-      uniqueGuests,
+      totalGuests,
       duplicateGuests
     }
   }
@@ -557,7 +601,8 @@ export async function getUsersByRole(role) {
 export async function getAllUsersSafe() {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, username, display_name, role, created_at')
+    .select('id, username, display_name, role, can_add_invitees, can_send_invitations, created_at')
+    .order('username', { ascending: true })
   if (error) return []
   return users
 }

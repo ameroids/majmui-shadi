@@ -9,7 +9,8 @@ import { getEventGuestData, getEvents } from '../lib/db'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
-  { path: '/tnc/reports', label: 'Event Reports', icon: '📊' }
+  { path: '/tnc/reports', label: 'Event Reports', icon: '📊' },
+  { path: '/tnc/individual', label: 'Individual Reports', icon: '👤' }
 ]
 
 export default function TNCEventReportsPage() {
@@ -44,7 +45,7 @@ export default function TNCEventReportsPage() {
 
   const listToRender = 
     activeTab === 'actual' ? currentEventData.actualGuests :
-    activeTab === 'unique' ? currentEventData.uniqueGuests : 
+    activeTab === 'total' ? currentEventData.totalGuests : 
     currentEventData.duplicateGuests
 
   return (
@@ -79,15 +80,32 @@ export default function TNCEventReportsPage() {
               <div className="text-xs text-ink/40 mt-1">Deduplicated headcount</div>
             </Card>
             <Card className="p-5 text-center sm:text-left">
-              <div className="text-sm text-ink/50 uppercase tracking-wider mb-1">Unique Entries</div>
-              <div className="text-3xl font-display font-semibold text-blue-600">{currentEventData.totalUnique}</div>
-              <div className="text-xs text-ink/40 mt-1">Invited by exactly one</div>
+              <div className="text-sm text-ink/50 uppercase tracking-wider mb-1">Total Invitations</div>
+              <div className="text-3xl font-display font-semibold text-blue-600">{currentEventData.totalTotal}</div>
+              <div className="text-xs text-ink/40 mt-1">Includes all duplicates</div>
             </Card>
             <Card className="p-5 text-center sm:text-left">
               <div className="text-sm text-ink/50 uppercase tracking-wider mb-1">Duplicate Clashes</div>
               <div className="text-3xl font-display font-semibold text-rose-600">{currentEventData.totalDuplicates}</div>
               <div className="text-xs text-ink/40 mt-1">Invited by multiple</div>
             </Card>
+          </div>
+
+          <div className="bg-gradient-to-r from-emerald-deep to-teal-900 p-6 rounded-2xl text-white shadow-lg mb-10 flex flex-col sm:flex-row items-center justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+            <div className="relative z-10 text-center sm:text-left mb-4 sm:mb-0">
+              <h3 className="text-xl font-display font-bold text-gold mb-1 flex items-center justify-center sm:justify-start gap-2">
+                <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                Benefit of TNC
+              </h3>
+              <p className="text-white/70 text-sm">Total duplicate invitations successfully deduplicated.</p>
+            </div>
+            <div className="relative z-10 bg-white/10 px-6 py-3 rounded-xl border border-white/20">
+              <div className="text-4xl font-display font-bold text-white text-center">
+                {currentEventData.totalTotal - currentEventData.totalActual}
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-white/50 text-center mt-1">Saved Entries</div>
+            </div>
           </div>
 
           <div className="flex gap-4 border-b border-ivory-line mb-6">
@@ -98,10 +116,10 @@ export default function TNCEventReportsPage() {
               Actual Guest List
             </button>
             <button
-              onClick={() => setActiveTab('unique')}
-              className={`pb-3 text-sm font-medium border-b-2 transition ${activeTab === 'unique' ? 'border-emerald text-emerald-deep' : 'border-transparent text-ink/50 hover:text-ink'}`}
+              onClick={() => setActiveTab('total')}
+              className={`pb-3 text-sm font-medium border-b-2 transition ${activeTab === 'total' ? 'border-emerald text-emerald-deep' : 'border-transparent text-ink/50 hover:text-ink'}`}
             >
-              Unique Entries
+              Total Guest Invitations
             </button>
             <button
               onClick={() => setActiveTab('duplicate')}

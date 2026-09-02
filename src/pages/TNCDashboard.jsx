@@ -9,7 +9,8 @@ import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEv
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
-  { path: '/tnc/reports', label: 'Event Reports', icon: '📊' }
+  { path: '/tnc/reports', label: 'Event Reports', icon: '📊' },
+  { path: '/tnc/individual', label: 'Individual Reports', icon: '👤' }
 ]
 
 export default function TNCDashboard() {
@@ -57,8 +58,7 @@ export default function TNCDashboard() {
         <div className="flex items-center gap-2 text-sm text-ink/50 py-10"><Spinner className="h-4 w-4" /> Loading…</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-            <Stat label="Total Families" value={stats.totalFamilies} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-8">
             <Stat label="Total Invitees" value={stats.totalInvitees} />
             <Stat label="Invitations Sent" value={stats.sentInvitations} />
             <Stat label="Invitations Pending" value={stats.pendingInvitations} />
