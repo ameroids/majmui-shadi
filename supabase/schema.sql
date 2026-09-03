@@ -94,7 +94,7 @@ create table if not exists invitations (
   bride_groom_user_id uuid not null references users(id) on delete cascade,
   family_id uuid not null references families(id) on delete cascade,
   whatsapp_recipient_member_id uuid not null references family_members(id),
-  status text not null default 'Draft' check (status in ('Draft', 'Ready', 'WhatsApp Opened', 'Sent')),
+  status text not null default 'Draft' check (status in ('Draft', 'Ready', 'WhatsApp Opened', 'Sent', 'RSVP Sent', 'RSVPed')),
   generated_message text not null,
   created_at timestamptz not null default now(),
   sent_at timestamptz

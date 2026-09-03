@@ -179,24 +179,23 @@ export default function SendInvitationPage() {
                           Mark Sent
                         </Button>
                       )}
-                      {(inv.status === 'Sent' || inv.status === 'RSVP Sent') && (
+                      {(inv.status === 'Sent' || inv.status === 'RSVP Sent' || inv.status === 'RSVPed') && (
                         <>
-                          {inv.status !== 'RSVP Sent' && (
-                            <Button variant="outline" size="sm" onClick={() => {
-                              if (user.can_send_rsvps === false) {
-                                setLockedModal({
-                                  open: true,
-                                  title: 'RSVP Phase Locked',
-                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                                })
-                                return
-                              }
-                              handleSendRsvp(inv)
-                            }}>
-                              Send RSVP Link
-                            </Button>
-                          )}
-                          {inv.status !== 'RSVP Sent' && (
+                          <Button variant="outline" size="sm" onClick={() => {
+                            if (user.can_send_rsvps === false) {
+                              setLockedModal({
+                                open: true,
+                                title: 'RSVP Phase Locked',
+                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                              })
+                              return
+                            }
+                            handleSendRsvp(inv)
+                          }}>
+                            {inv.status === 'RSVP Sent' || inv.status === 'RSVPed' ? 'Resend RSVP Link' : 'Send RSVP Link'}
+                          </Button>
+                          
+                          {inv.status !== 'RSVP Sent' && inv.status !== 'RSVPed' && (
                             <Button variant="outline" size="sm" onClick={() => {
                               if (user.can_send_rsvps === false) {
                                 setLockedModal({

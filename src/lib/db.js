@@ -601,7 +601,7 @@ export async function getAdminStats() {
   const familyIds = new Set((allInvitees || []).map((i) => i.family_id))
   
   // Get RSVPs from invitation_member_events where invitation is Sent
-  const { data: invs } = await supabase.from('invitations').select('id').in('status', ['Sent', 'WhatsApp Opened', 'RSVPed'])
+  const { data: invs } = await supabase.from('invitations').select('id').in('status', ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'])
   const validInvIds = invs ? invs.map(i => i.id) : []
 
   let allRsvps = []
@@ -655,7 +655,7 @@ export async function getTncRsvpData() {
   const { data: invs, error: invsErr } = await supabase
     .from('invitations')
     .select('id, status, users (display_name)')
-    .in('status', ['Sent', 'WhatsApp Opened', 'RSVPed'])
+    .in('status', ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'])
     
   if (invsErr || !invs || invs.length === 0) {
     if (invsErr) console.error('Error fetching TNC RSVPs (invitations):', invsErr)

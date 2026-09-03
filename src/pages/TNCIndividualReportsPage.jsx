@@ -71,7 +71,7 @@ export default function TNCIndividualReportsPage() {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_member_events?.some(e => e.event_id === filterEventId))
   }
   if (filterStatus === 'Sent') {
-    displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Sent')
+    displayInvitees = displayInvitees.filter(inv => ['Sent', 'RSVP Sent', 'RSVPed'].includes(inv.invitation_status))
   } else if (filterStatus === 'Pending') {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'WhatsApp Opened')
   } else if (filterStatus === 'Added') {
