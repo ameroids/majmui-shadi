@@ -52,16 +52,19 @@ export default function BrideGroomDashboard() {
         <PageLoader label="Loading your dashboard…" />
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <StatCard label="Total Invitees" value={stats.totalInvitees} accent />
             <StatCard label="Total Families" value={stats.totalFamilies} accent />
             <StatCard label="Invitations Ready" value={stats.ready} accent />
             <StatCard label="Invitations Sent" value={stats.sent} accent />
           </div>
 
-
-
-          <Card className="p-5 sm:p-6">
+          <h2 className="font-display text-xl font-semibold text-emerald-deep mb-4 mt-8">RSVP Status</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+            <StatCard label="Attending" value={stats.attending || 0} />
+            <StatCard label="Not Attending" value={stats.notAttending || 0} />
+            <StatCard label="Pending RSVPs" value={stats.pendingRsvps || 0} />
+          </div>          <Card className="p-5 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-semibold text-emerald-deep">Invitation progress</h2>
               {invitations.length > 0 && (

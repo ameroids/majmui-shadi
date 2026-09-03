@@ -544,11 +544,49 @@ export async function getUserStats(userId) {
   const invitations = await getInvitationsByUser(userId)
   
   const families = new Set(invitees.map((i) => i.family_id))
+  
+  // Calculate RSVPs from invitation_member_events
+  const { data: userInvs } = await supabase.from('invitations').select('id').eq('bride_groom_user_id', userId)
+  const validInvIds = userInvs ? userInvs.map(i => i.id) : []
+
+  let rsvps = []
+  if (validInvIds.length > 0) {
+    const { data } = await supabase
+      .from('invitation_member_events')
+      .select('invitee_id, rsvp_status')
+      .in('invitation_id', validInvIds)
+    if (data) rsvps = data
+  }
+
+  const personRsvps = new Map()
+  if (rsvps) {
+    rsvps.forEach(r => {
+      if (!personRsvps.has(r.invitee_id)) {
+        personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+      }
+      const s = personRsvps.get(r.invitee_id)
+      if (r.rsvp_status === 'Attending') s.attending++
+      else if (r.rsvp_status === 'Not Attending') s.notAttending++
+      else s.pending++
+    })
+  }
+
+  let attending = 0, notAttending = 0, pendingRsvps = 0
+  personRsvps.forEach(s => {
+    if (s.attending > 0) attending++
+    else if (s.pending > 0) pendingRsvps++
+    else if (s.notAttending > 0) notAttending++
+  })
+
   return {
     totalInvitees: invitees.length,
     totalFamilies: families.size,
+    drafts: invitations.filter((i) => i.status === 'Draft').length,
     ready: invitations.filter((i) => i.status === 'Ready' || i.status === 'WhatsApp Opened').length,
-    sent: invitations.filter((i) => i.status === 'Sent').length,
+    sent: invitations.filter((i) => i.status === 'Sent' || i.status === 'RSVP Sent').length,
+    attending,
+    notAttending,
+    pendingRsvps,
   }
 }
 
@@ -556,12 +594,46 @@ export async function getAdminStats() {
   const { count: bridesCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'bride')
   const { count: groomsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'groom')
   const { count: familiesCount } = await supabase.from('families').select('*', { count: 'exact', head: true })
-  const { count: inviteesCount } = await supabase.from('invitees').select('*', { count: 'exact', head: true })
+  
+  // Get all invitees to calculate RSVP stats and family counts
+  const { data: allInvitees } = await supabase.from('invitees').select('id, family_id')
+  const inviteesCount = allInvitees ? allInvitees.length : 0
+  const familyIds = new Set((allInvitees || []).map((i) => i.family_id))
+  
+  // Get RSVPs from invitation_member_events where invitation is Sent
+  const { data: invs } = await supabase.from('invitations').select('id').in('status', ['Sent', 'WhatsApp Opened', 'RSVPed'])
+  const validInvIds = invs ? invs.map(i => i.id) : []
+
+  let allRsvps = []
+  if (validInvIds.length > 0) {
+    const { data } = await supabase
+      .from('invitation_member_events')
+      .select('invitee_id, rsvp_status')
+      .in('invitation_id', validInvIds)
+    if (data) allRsvps = data
+  }
+
+  const personRsvps = new Map()
+  if (allRsvps) {
+    allRsvps.forEach(r => {
+      if (!personRsvps.has(r.invitee_id)) {
+        personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+      }
+      const s = personRsvps.get(r.invitee_id)
+      if (r.rsvp_status === 'Attending') s.attending++
+      else if (r.rsvp_status === 'Not Attending') s.notAttending++
+      else s.pending++
+    })
+  }
+
+  let attending = 0, notAttending = 0, pendingRsvps = 0
+  personRsvps.forEach(s => {
+    if (s.attending > 0) attending++
+    else if (s.pending > 0) pendingRsvps++
+    else if (s.notAttending > 0) notAttending++
+  })
   
   const invitations = await getAllInvitations()
-  const { data: inviteesFamilies } = await supabase.from('invitees').select('family_id')
-  
-  const familyIds = new Set((inviteesFamilies || []).map((i) => i.family_id))
   
   return {
     totalBrides: bridesCount || 0,
@@ -570,9 +642,60 @@ export async function getAdminStats() {
     totalFamiliesInvited: familyIds.size,
     totalInvitees: inviteesCount || 0,
     totalInvitations: invitations.length,
-    sentInvitations: invitations.filter((i) => i.status === 'Sent').length,
-    pendingInvitations: invitations.filter((i) => i.status !== 'Sent').length,
+    sentInvitations: invitations.filter((i) => i.status === 'Sent' || i.status === 'RSVP Sent').length,
+    pendingInvitations: invitations.filter((i) => i.status !== 'Sent' && i.status !== 'RSVP Sent').length,
+    attending,
+    notAttending,
+    pendingRsvps,
   }
+}
+
+export async function getTncRsvpData() {
+  // Fetch relevant invitations first to avoid PostgREST inner join ambiguity
+  const { data: invs, error: invsErr } = await supabase
+    .from('invitations')
+    .select('id, status, users (display_name)')
+    .in('status', ['Sent', 'WhatsApp Opened', 'RSVPed'])
+    
+  if (invsErr || !invs || invs.length === 0) {
+    if (invsErr) console.error('Error fetching TNC RSVPs (invitations):', invsErr)
+    return []
+  }
+
+  const validInvIds = invs.map(i => i.id)
+  const invMap = Object.fromEntries(invs.map(i => [i.id, i]))
+
+  const { data, error } = await supabase
+    .from('invitation_member_events')
+    .select(`
+      invitation_id,
+      rsvp_status,
+      events (event_name),
+      invitees (
+        id,
+        full_name,
+        surname,
+        mobile,
+        relationship
+      )
+    `)
+    .in('invitation_id', validInvIds)
+
+  if (error) {
+    console.error('Error fetching TNC RSVP Data (junctions):', error)
+    return []
+  }
+
+  return data.map(row => ({
+    rsvp_status: row.rsvp_status || 'Pending',
+    event_name: row.events?.event_name,
+    invitee_id: row.invitees?.id,
+    full_name: row.invitees?.full_name,
+    surname: row.invitees?.surname,
+    mobile: row.invitees?.mobile,
+    relationship: row.invitees?.relationship,
+    invited_by: invMap[row.invitation_id]?.users?.display_name
+  }))
 }
 
 export async function resetUserData(userId) {
@@ -582,6 +705,43 @@ export async function resetUserData(userId) {
   
   const { error: reqErr } = await supabase.from('invitees').delete().eq('bride_groom_user_id', userId)
   if (reqErr) throw reqErr
+  
+  // Reset feature locks
+  const { error: userErr } = await supabase.from('users').update({
+    can_add_invitees: true,
+    can_send_invitations: true,
+    can_send_rsvps: false
+  }).eq('id', userId)
+  
+  if (userErr) throw userErr
+}
+
+export async function resetUserPhaseData(userId, phase) {
+  if (phase === 1) {
+    // Phase 1: Reset Invitees (Delete all invitees and their invitations)
+    const { error: invErr } = await supabase.from('invitations').delete().eq('bride_groom_user_id', userId)
+    if (invErr) throw invErr
+    const { error: reqErr } = await supabase.from('invitees').delete().eq('bride_groom_user_id', userId)
+    if (reqErr) throw reqErr
+  } else if (phase === 2) {
+    // Phase 2: Reset Invitations (Delete invitations only, keep invitees)
+    const { error: invErr } = await supabase.from('invitations').delete().eq('bride_groom_user_id', userId)
+    if (invErr) throw invErr
+    
+    // Also reset invitation_status on invitees
+    const { error: updateErr } = await supabase.from('invitees').update({ invitation_status: 'Not Invited' }).eq('bride_groom_user_id', userId)
+    if (updateErr) throw updateErr
+  } else if (phase === 3) {
+    // Phase 3: Reset RSVPs (Keep invitations, just set all RSVP status to Pending)
+    const { data: invs } = await supabase.from('invitations').select('id').eq('bride_groom_user_id', userId)
+    if (invs && invs.length > 0) {
+      const invIds = invs.map(i => i.id)
+      const { error: rsvpErr } = await supabase.from('invitation_member_events')
+        .update({ rsvp_status: 'Pending' })
+        .in('invitation_id', invIds)
+      if (rsvpErr) throw rsvpErr
+    }
+  }
 }
 
 export async function deleteAllFamilies() {
@@ -601,8 +761,99 @@ export async function getUsersByRole(role) {
 export async function getAllUsersSafe() {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, username, display_name, role, can_add_invitees, can_send_invitations, created_at')
+    .select('id, username, display_name, role, can_add_invitees, can_send_invitations, can_send_rsvps, created_at')
     .order('username', { ascending: true })
   if (error) return []
   return users
+}
+
+// --------------------------- Public RSVP -------------------------------------
+
+export async function getPublicInvitationDetails(invitationId) {
+  // Fetch invitation, family details, and invited members safely for public view
+  const { data: inv, error } = await supabase
+    .from('invitations')
+    .select(`
+      id,
+      status,
+      families (surname, hof_its),
+      users (display_name),
+      invitation_member_events (
+        rsvp_status,
+        events (id, event_name),
+        invitees (
+          id,
+          full_name
+        )
+      )
+    `)
+    .eq('id', invitationId)
+    .single()
+    
+  if (error || !inv) {
+    console.error("Error fetching public invitation:", error)
+    return { error: 'Invitation not found.' }
+  }
+
+  // Group events by invitee
+  const uniqueInviteesMap = new Map()
+  
+  if (inv.invitation_member_events) {
+    inv.invitation_member_events.forEach(im => {
+      if (im.invitees && im.invitees.id && im.events) {
+        if (!uniqueInviteesMap.has(im.invitees.id)) {
+          uniqueInviteesMap.set(im.invitees.id, {
+            id: im.invitees.id,
+            full_name: im.invitees.full_name,
+            events: []
+          })
+        }
+        uniqueInviteesMap.get(im.invitees.id).events.push({
+          junction_id: `${im.invitees.id}_${im.events.id}`,
+          invitee_id: im.invitees.id,
+          event_id: im.events.id,
+          event_name: im.events.event_name,
+          rsvp_status: im.rsvp_status || 'Pending'
+        })
+      }
+    })
+  }
+
+  return {
+    invitation: {
+      id: inv.id,
+      status: inv.status,
+      surname: inv.families?.surname,
+      invited_by: inv.users?.display_name
+    },
+    invitees: Array.from(uniqueInviteesMap.values())
+  }
+}
+
+export async function submitRsvp(invitationId, rsvpData) {
+  // rsvpData is an array of objects: { junctionId: "inviteeId_eventId", status: 'Attending' | 'Not Attending' }
+  try {
+    for (const rsvp of rsvpData) {
+      if (!rsvp.junctionId) continue;
+      const [inviteeId, eventId] = rsvp.junctionId.split('_')
+      if (!inviteeId || !eventId) continue;
+      
+      await supabase
+        .from('invitation_member_events')
+        .update({ rsvp_status: rsvp.status })
+        .eq('invitation_id', invitationId)
+        .eq('invitee_id', inviteeId)
+        .eq('event_id', eventId)
+    }
+    
+    // Also update invitation status to RSVPed so we know they responded
+    await supabase
+      .from('invitations')
+      .update({ status: 'RSVPed' })
+      .eq('id', invitationId)
+      
+    return { success: true }
+  } catch (error) {
+    return { error: error.message }
+  }
 }

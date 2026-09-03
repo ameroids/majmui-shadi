@@ -11,7 +11,20 @@ export function AuthProvider({ children }) {
     const raw = sessionStorage.getItem(SESSION_KEY)
     if (raw) {
       try {
-        setUser(JSON.parse(raw))
+        const cachedUser = JSON.parse(raw)
+        setUser(cachedUser)
+        // Silently refresh latest user data (like permissions) from DB
+        if (cachedUser && cachedUser.id) {
+          import('../lib/supabaseClient').then(({ supabase }) => {
+            supabase.from('users').select('*').eq('id', cachedUser.id).single().then(({ data }) => {
+              if (data) {
+                const updatedUser = { ...cachedUser, ...data }
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser))
+                setUser(updatedUser)
+              }
+            })
+          })
+        }
       } catch {
         sessionStorage.removeItem(SESSION_KEY)
       }

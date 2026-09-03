@@ -11,9 +11,9 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
   getFamiliesWithInviteesForUser, getEvents, createInvitation,
-  getInvitationsByUser, updateInvitationStatus,
+  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage
 } from '../lib/db'
-import { generateMessage, buildWhatsappLink } from '../lib/messageTemplate'
+import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -69,6 +69,24 @@ export default function SendInvitationPage() {
     await updateInvitationStatus(invitation.id, 'Sent')
     showToast(`Marked ${invitation.surname} family's invitation as sent.`)
     loadAll()
+  }
+
+  const handleMarkRsvpSent = async (invitation) => {
+    await updateInvitationStatus(invitation.id, 'RSVP Sent')
+    showToast(`Marked ${invitation.surname} family's RSVP as sent.`)
+    loadAll()
+  }
+
+  const handleSendRsvp = async (invitation) => {
+    const rsvpUrl = `${window.location.origin}/rsvp/${invitation.id}`
+    const message = generateRsvpMessage(invitation.recipient_name, rsvpUrl)
+    
+    if (window.Android && window.Android.shareToWhatsApp) {
+      window.Android.shareToWhatsApp(invitation.recipient_mobile, message)
+    } else {
+      const link = buildWhatsappLink(invitation.recipient_mobile, message)
+      window.open(link, '_blank', 'noopener,noreferrer')
+    }
   }
 
   return (
@@ -131,20 +149,22 @@ export default function SendInvitationPage() {
                     </td>
                     <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
                     <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                      <Button variant="whatsapp" size="sm" onClick={() => {
-                        if (user.can_send_invitations === false) {
-                          setLockedModal({
-                            open: true,
-                            title: 'Action Locked',
-                            message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
-                          })
-                          return
-                        }
-                        handleOpenWhatsapp(inv)
-                      }}>
-                        {inv.status === 'Sent' ? 'Reopen' : 'Send on WhatsApp'}
-                      </Button>
-                      {inv.status !== 'Sent' && (
+                      {inv.status !== 'RSVP Sent' && (
+                        <Button variant="whatsapp" size="sm" onClick={() => {
+                          if (user.can_send_invitations === false) {
+                            setLockedModal({
+                              open: true,
+                              title: 'Action Locked',
+                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                            })
+                            return
+                          }
+                          handleOpenWhatsapp(inv)
+                        }}>
+                          {inv.status === 'Sent' ? 'Reopen' : 'Send on WhatsApp'}
+                        </Button>
+                      )}
+                      {(inv.status !== 'Sent' && inv.status !== 'RSVP Sent') && (
                         <Button variant="outline" size="sm" onClick={() => {
                           if (user.can_send_invitations === false) {
                             setLockedModal({
@@ -158,6 +178,40 @@ export default function SendInvitationPage() {
                         }}>
                           Mark Sent
                         </Button>
+                      )}
+                      {(inv.status === 'Sent' || inv.status === 'RSVP Sent') && (
+                        <>
+                          {inv.status !== 'RSVP Sent' && (
+                            <Button variant="outline" size="sm" onClick={() => {
+                              if (user.can_send_rsvps === false) {
+                                setLockedModal({
+                                  open: true,
+                                  title: 'RSVP Phase Locked',
+                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                                })
+                                return
+                              }
+                              handleSendRsvp(inv)
+                            }}>
+                              Send RSVP Link
+                            </Button>
+                          )}
+                          {inv.status !== 'RSVP Sent' && (
+                            <Button variant="outline" size="sm" onClick={() => {
+                              if (user.can_send_rsvps === false) {
+                                setLockedModal({
+                                  open: true,
+                                  title: 'RSVP Phase Locked',
+                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                                })
+                                return
+                              }
+                              handleMarkRsvpSent(inv)
+                            }}>
+                              Mark RSVP Sent
+                            </Button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>
@@ -304,6 +358,7 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
         member_events: parsedMemberEvents,
         message,
       })
+      
       buildLinkAndOpen(record.recipient_mobile, record.generated_message)
       await updateInvitationStatus(record.id, 'WhatsApp Opened')
       showToast(`Invitation ready for the ${family.surname} family — WhatsApp opened.`)

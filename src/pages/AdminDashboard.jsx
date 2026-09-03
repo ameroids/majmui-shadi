@@ -8,7 +8,7 @@ import { Field, Input } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, deleteAllFamilies, updateUserPermissions } from '../lib/db'
+import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteAllFamilies, updateUserPermissions } from '../lib/db'
 import { getTemplate, setTemplate, DEFAULT_TEMPLATE } from '../lib/messageTemplate'
 import Modal from '../components/ui/Modal'
 
@@ -17,6 +17,7 @@ const NAV = [
   { path: '/admin/families', label: 'Families', icon: '👪' },
   { path: '/admin/invitations', label: 'Invitations', icon: '✉' },
   { path: '/admin/users', label: 'Users', icon: '☺' },
+  { path: '/admin/phases', label: 'Phase Controls', icon: '⚙' },
   { path: '/admin/template', label: 'Message Template', icon: '✎' },
 ]
 
@@ -40,7 +41,7 @@ export default function AdminDashboard({ tab = 'overview' }) {
 
   useEffect(() => { load() }, [])
 
-  const activePath = { overview: '/admin', families: '/admin/families', invitations: '/admin/invitations', users: '/admin/users', template: '/admin/template' }[tab]
+  const activePath = { overview: '/admin', families: '/admin/families', invitations: '/admin/invitations', users: '/admin/users', phases: '/admin/phases', template: '/admin/template' }[tab]
 
   return (
     <DashboardLayout navItems={NAV} activePath={activePath} roleLabel="Admin">
@@ -55,6 +56,7 @@ export default function AdminDashboard({ tab = 'overview' }) {
           {tab === 'families' && <FamiliesTable families={families} onRefresh={load} />}
           {tab === 'invitations' && <InvitationsTable invitations={invitations} />}
           {tab === 'users' && <UsersTable users={users} onRefresh={load} />}
+          {tab === 'phases' && <PhasesTable users={users} onRefresh={load} />}
           {tab === 'template' && <TemplateEditor />}
         </>
       )}
@@ -73,11 +75,26 @@ function Overview({ stats, events }) {
     ['Pending Invitations', stats.pendingInvitations],
     ['Families Engaged', stats.totalFamiliesInvited],
   ]
+  const rsvpCards = [
+    ['Attending', stats.attending || 0],
+    ['Not Attending', stats.notAttending || 0],
+    ['Pending RSVPs', stats.pendingRsvps || 0],
+  ]
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
         {cards.map(([label, value]) => (
           <Card key={label} className="p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink/45">{label}</p>
+            <p className="font-display text-3xl font-semibold mt-1 text-emerald-deep">{value}</p>
+          </Card>
+        ))}
+      </div>
+      
+      <h2 className="font-display text-xl font-semibold text-emerald-deep mb-4">RSVP Status</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+        {rsvpCards.map(([label, value]) => (
+          <Card key={label} className="p-4 sm:p-5 border-t-4 border-t-gold">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink/45">{label}</p>
             <p className="font-display text-3xl font-semibold mt-1 text-emerald-deep">{value}</p>
           </Card>
@@ -199,13 +216,13 @@ function UsersTable({ users, onRefresh }) {
   const handleReset = (u) => {
     setConfirmState({
       open: true,
-      title: 'Reset Data',
-      message: `Are you sure you want to reset all data for ${u.display_name}? This will permanently delete all their invitees and generated invitations.`,
+      title: 'Reset All Data',
+      message: `Are you sure you want to reset ALL data for ${u.display_name}? This will permanently delete all their invitees and generated invitations.`,
       isDanger: true,
       action: async () => {
         try {
           await resetUserData(u.id)
-          showToast(`Successfully reset data for ${u.display_name}`)
+          showToast(`Successfully reset all data for ${u.display_name}`)
           onRefresh()
         } catch (err) {
           showToast(`Failed to reset data: ${err.message}`, 'error')
@@ -214,53 +231,19 @@ function UsersTable({ users, onRefresh }) {
     })
   }
 
-  const handleToggle = (u, field) => {
-    const newValue = !u[field]
-    
-    // If we are disabling the feature, ask for confirmation via modal
-    if (newValue === false) {
-      const featureName = field === 'can_add_invitees' ? 'Add Invitees' : 'Send Invitations'
-      setConfirmState({
-        open: true,
-        title: `Lock ${featureName}`,
-        message: `Are you sure you want to lock the "${featureName}" feature for ${u.display_name}? They will instantly lose access to this feature.`,
-        isDanger: true,
-        action: async () => {
-          await performToggle(u.id, field, newValue, u.display_name)
-        }
-      })
-      return
-    }
-
-    // If enabling, just do it directly
-    performToggle(u.id, field, newValue, u.display_name)
-  }
-
-  const performToggle = async (userId, field, newValue, displayName) => {
-    try {
-      await updateUserPermissions(userId, { [field]: newValue })
-      showToast(`${field === 'can_add_invitees' ? 'Add Invitees' : 'Send Invitations'} for ${displayName} is now ${newValue ? 'Enabled' : 'Disabled'}`)
-      onRefresh()
-    } catch (err) {
-      showToast(`Failed to update permissions: ${err.message}`, 'error')
-    }
-  }
-
-  const handleBulkToggle = (usersList, roleLabel, field, newValue) => {
-    const featureName = field === 'can_add_invitees' ? 'Add Invitees' : 'Send Invitations'
+  const handlePhaseReset = (u, phase, label, message) => {
     setConfirmState({
       open: true,
-      title: `Bulk ${newValue ? 'Unlock' : 'Lock'} ${featureName}`,
-      message: `Are you sure you want to ${newValue ? 'unlock' : 'lock'} the "${featureName}" feature for ALL ${roleLabel}s?`,
-      isDanger: !newValue,
+      title: `Reset ${label}`,
+      message: `Are you sure you want to reset ${label.toLowerCase()} for ${u.display_name}? ${message}`,
+      isDanger: true,
       action: async () => {
         try {
-          // Update all users in parallel
-          await Promise.all(usersList.map(u => updateUserPermissions(u.id, { [field]: newValue })))
-          showToast(`Successfully updated ${featureName} for all ${roleLabel}s`)
+          await resetUserPhaseData(u.id, phase)
+          showToast(`Successfully reset ${label.toLowerCase()} for ${u.display_name}`)
           onRefresh()
         } catch (err) {
-          showToast(`Failed bulk update: ${err.message}`, 'error')
+          showToast(`Failed to reset: ${err.message}`, 'error')
         }
       }
     })
@@ -284,37 +267,227 @@ function UsersTable({ users, onRefresh }) {
     })
   }
 
+  const handleBulkPhaseReset = (usersList, roleLabel, phase, label, message) => {
+    setConfirmState({
+      open: true,
+      title: `Bulk Reset ${label}`,
+      message: `Are you sure you want to reset ${label.toLowerCase()} for ALL ${roleLabel}s? ${message}`,
+      isDanger: true,
+      action: async () => {
+        try {
+          await Promise.all(usersList.map(u => resetUserPhaseData(u.id, phase)))
+          showToast(`Successfully reset ${label.toLowerCase()} for all ${roleLabel}s`)
+          onRefresh()
+        } catch (err) {
+          showToast(`Failed bulk reset: ${err.message}`, 'error')
+        }
+      }
+    })
+  }
+
   const renderUserItem = (u) => (
-    <li key={u.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-      <div>
-        <div className="flex items-center">
-          <span className="font-medium mr-2">{u.display_name}</span>
-          <span className="font-mono text-xs text-ink/45">{u.username}</span>
-        </div>
-        <div className="flex items-center gap-4 mt-2">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={u.can_add_invitees !== false} 
-              onChange={() => handleToggle(u, 'can_add_invitees')}
-              className="rounded border-ivory-line text-emerald focus:ring-emerald cursor-pointer"
-            />
-            <span className="text-xs text-ink/70">Add Invitees</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={u.can_send_invitations !== false} 
-              onChange={() => handleToggle(u, 'can_send_invitations')}
-              className="rounded border-ivory-line text-emerald focus:ring-emerald cursor-pointer"
-            />
-            <span className="text-xs text-ink/70">Send Invites</span>
-          </label>
-        </div>
+    <li key={u.id} className="py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-3 text-sm">
+      <div className="flex items-center shrink-0">
+        <span className="font-medium mr-2">{u.display_name}</span>
+        <span className="font-mono text-xs text-ink/45">{u.username}</span>
       </div>
-      <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 self-start sm:self-center" onClick={() => handleReset(u)}>
-        Reset Data
-      </Button>
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations.')}>
+          Reset P1 Data
+        </Button>
+        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 2, 'Phase 2 (Invitations)', 'This will delete generated invitations, but keep the invitee list intact.')}>
+          Reset P2 Data
+        </Button>
+        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending".')}>
+          Reset P3 Data
+        </Button>
+        <Button variant="ghost" size="sm" className="text-rose-600 border border-rose-200/60 bg-rose-50 hover:bg-rose-100 whitespace-nowrap text-xs py-1 px-2 h-auto font-medium flex items-center justify-center w-full sm:w-auto" onClick={() => handleReset(u)}>
+          Reset All Data
+        </Button>
+      </div>
+    </li>
+  )
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5">
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-ivory-line bg-ivory-soft/50 flex flex-col gap-3">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <h2 className="font-display text-xl font-semibold text-emerald-deep flex items-center gap-2">
+              Bride Accounts <Badge tone="neutral">{brides.length}</Badge>
+            </h2>
+            <button className="flex items-center border border-rose-200/60 rounded bg-white shadow-sm overflow-hidden hover:bg-rose-50 transition-colors px-2.5 py-1 text-rose-600 font-medium text-xs whitespace-nowrap" onClick={() => handleBulkReset(brides, 'Bride')}>
+              <span className="mr-1.5">⚠️</span> Reset All Data
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations for all brides.')}>
+              Reset All P1
+            </Button>
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 2, 'Phase 2 (Invitations)', 'This will delete generated invitations for all brides, but keep their invitee lists intact.')}>
+              Reset All P2
+            </Button>
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all brides.')}>
+              Reset All P3
+            </Button>
+          </div>
+        </div>
+        <ul className="divide-y divide-ivory-line px-5 sm:px-6">
+          {brides.map(renderUserItem)}
+        </ul>
+      </Card>
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-ivory-line bg-ivory-soft/50 flex flex-col gap-3">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <h2 className="font-display text-xl font-semibold text-emerald-deep flex items-center gap-2">
+              Groom Accounts <Badge tone="neutral">{grooms.length}</Badge>
+            </h2>
+            <button className="flex items-center border border-rose-200/60 rounded bg-white shadow-sm overflow-hidden hover:bg-rose-50 transition-colors px-2.5 py-1 text-rose-600 font-medium text-xs whitespace-nowrap" onClick={() => handleBulkReset(grooms, 'Groom')}>
+              <span className="mr-1.5">⚠️</span> Reset All Data
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations for all grooms.')}>
+              Reset All P1
+            </Button>
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 2, 'Phase 2 (Invitations)', 'This will delete generated invitations for all grooms, but keep their invitee lists intact.')}>
+              Reset All P2
+            </Button>
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all grooms.')}>
+              Reset All P3
+            </Button>
+          </div>
+        </div>
+        <ul className="divide-y divide-ivory-line px-5 sm:px-6">
+          {grooms.map(renderUserItem)}
+        </ul>
+      </Card>
+
+      <Modal 
+        open={confirmState.open} 
+        onClose={() => setConfirmState({ ...confirmState, open: false })} 
+        title={confirmState.title}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmState({ ...confirmState, open: false })}>Cancel</Button>
+            <Button 
+              variant={confirmState.isDanger ? 'primary' : 'primary'} 
+              className={confirmState.isDanger ? 'bg-rose-600 hover:bg-rose-700 text-white' : ''}
+              onClick={() => {
+                confirmState.action?.()
+                setConfirmState({ ...confirmState, open: false })
+              }}
+            >
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink/70 leading-relaxed">{confirmState.message}</p>
+      </Modal>
+    </div>
+  )
+}
+
+function PhasesTable({ users, onRefresh }) {
+  const { showToast } = useToast()
+  const brides = users.filter((u) => u.role === 'bride')
+  const grooms = users.filter((u) => u.role === 'groom')
+  
+  const [confirmState, setConfirmState] = useState({ open: false, title: '', message: '', action: null, isDanger: false })
+
+  const handleToggle = (u, field) => {
+    const newValue = !u[field]
+    
+    let featureName = 'Feature'
+    if (field === 'can_add_invitees') featureName = 'Add Invitees'
+    if (field === 'can_send_invitations') featureName = 'Send Invitations'
+    if (field === 'can_send_rsvps') featureName = 'Send RSVPs'
+    
+    if (newValue === false) {
+      setConfirmState({
+        open: true,
+        title: `Lock ${featureName}`,
+        message: `Are you sure you want to lock the "${featureName}" feature for ${u.display_name}? They will instantly lose access to this feature.`,
+        isDanger: true,
+        action: async () => {
+          await performToggle(u.id, field, newValue, u.display_name, featureName)
+        }
+      })
+      return
+    }
+
+    performToggle(u.id, field, newValue, u.display_name, featureName)
+  }
+
+  const performToggle = async (userId, field, newValue, displayName, featureName) => {
+    try {
+      await updateUserPermissions(userId, { [field]: newValue })
+      showToast(`${featureName} for ${displayName} is now ${newValue ? 'Enabled' : 'Disabled'}`)
+      onRefresh()
+    } catch (err) {
+      showToast(`Failed to update permissions: ${err.message}`, 'error')
+    }
+  }
+
+  const handleBulkToggle = (usersList, roleLabel, field, newValue) => {
+    let featureName = 'Feature'
+    if (field === 'can_add_invitees') featureName = 'Add Invitees'
+    if (field === 'can_send_invitations') featureName = 'Send Invitations'
+    if (field === 'can_send_rsvps') featureName = 'Send RSVPs'
+    
+    setConfirmState({
+      open: true,
+      title: `Bulk ${newValue ? 'Unlock' : 'Lock'} ${featureName}`,
+      message: `Are you sure you want to ${newValue ? 'unlock' : 'lock'} the "${featureName}" feature for ALL ${roleLabel}s?`,
+      isDanger: !newValue,
+      action: async () => {
+        try {
+          await Promise.all(usersList.map(u => updateUserPermissions(u.id, { [field]: newValue })))
+          showToast(`Successfully updated ${featureName} for all ${roleLabel}s`)
+          onRefresh()
+        } catch (err) {
+          showToast(`Failed bulk update: ${err.message}`, 'error')
+        }
+      }
+    })
+  }
+
+  const renderUserItem = (u) => (
+    <li key={u.id} className="py-3 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3 text-sm">
+      <div className="flex items-center shrink-0">
+        <span className="font-medium mr-2">{u.display_name}</span>
+        <span className="font-mono text-xs text-ink/45">{u.username}</span>
+      </div>
+      <div className="flex items-center gap-4 flex-wrap">
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={u.can_add_invitees !== false} 
+            onChange={() => handleToggle(u, 'can_add_invitees')}
+            className="rounded border-ivory-line text-emerald focus:ring-emerald cursor-pointer shrink-0"
+          />
+          <span className="text-xs text-ink/70 whitespace-nowrap">Add Invitees</span>
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={u.can_send_invitations !== false} 
+            onChange={() => handleToggle(u, 'can_send_invitations')}
+            className="rounded border-ivory-line text-emerald focus:ring-emerald cursor-pointer shrink-0"
+          />
+          <span className="text-xs text-ink/70 whitespace-nowrap">Send Invites</span>
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={u.can_send_rsvps !== false} 
+            onChange={() => handleToggle(u, 'can_send_rsvps')}
+            className="rounded border-ivory-line text-emerald focus:ring-emerald cursor-pointer shrink-0"
+          />
+          <span className="text-xs text-ink/70 whitespace-nowrap">Send RSVPs</span>
+        </label>
+      </div>
     </li>
   )
 
@@ -327,21 +500,24 @@ function UsersTable({ users, onRefresh }) {
               Bride Accounts <Badge tone="neutral">{brides.length}</Badge>
             </h2>
             <div className="flex items-center gap-2 flex-wrap text-xs">
-              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
                 <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Add Invitees:</span>
                 <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_add_invitees', true)}>Unlock</button>
                 <div className="w-px h-4 bg-ivory-line"></div>
                 <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_add_invitees', false)}>Lock</button>
               </div>
-              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
                 <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Send Invites:</span>
                 <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_send_invitations', true)}>Unlock</button>
                 <div className="w-px h-4 bg-ivory-line"></div>
                 <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_send_invitations', false)}>Lock</button>
               </div>
-              <button className="flex items-center border border-rose-200/60 rounded bg-white shadow-sm overflow-hidden hover:bg-rose-50 transition-colors px-2.5 py-1 text-rose-600 font-medium ml-auto" onClick={() => handleBulkReset(brides, 'Bride')}>
-                <span className="mr-1.5">⚠️</span> Reset All
-              </button>
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
+                <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Send RSVPs:</span>
+                <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_send_rsvps', true)}>Unlock</button>
+                <div className="w-px h-4 bg-ivory-line"></div>
+                <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(brides, 'Bride', 'can_send_rsvps', false)}>Lock</button>
+              </div>
             </div>
           </div>
         </div>
@@ -356,21 +532,24 @@ function UsersTable({ users, onRefresh }) {
               Groom Accounts <Badge tone="neutral">{grooms.length}</Badge>
             </h2>
             <div className="flex items-center gap-2 flex-wrap text-xs">
-              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
                 <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Add Invitees:</span>
                 <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_add_invitees', true)}>Unlock</button>
                 <div className="w-px h-4 bg-ivory-line"></div>
                 <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_add_invitees', false)}>Lock</button>
               </div>
-              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
                 <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Send Invites:</span>
                 <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_send_invitations', true)}>Unlock</button>
                 <div className="w-px h-4 bg-ivory-line"></div>
                 <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_send_invitations', false)}>Lock</button>
               </div>
-              <button className="flex items-center border border-rose-200/60 rounded bg-white shadow-sm overflow-hidden hover:bg-rose-50 transition-colors px-2.5 py-1 text-rose-600 font-medium ml-auto" onClick={() => handleBulkReset(grooms, 'Groom')}>
-                <span className="mr-1.5">⚠️</span> Reset All
-              </button>
+              <div className="flex items-center border border-ivory-line rounded bg-white shadow-sm overflow-hidden whitespace-nowrap shrink-0">
+                <span className="px-2 py-1 text-ink/70 font-medium border-r border-ivory-line bg-ivory-soft">Send RSVPs:</span>
+                <button className="px-2 py-1 hover:bg-emerald-soft text-emerald-deep font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_send_rsvps', true)}>Unlock</button>
+                <div className="w-px h-4 bg-ivory-line"></div>
+                <button className="px-2 py-1 hover:bg-rose-50 text-rose-600 font-medium transition-colors" onClick={() => handleBulkToggle(grooms, 'Groom', 'can_send_rsvps', false)}>Lock</button>
+              </div>
             </div>
           </div>
         </div>

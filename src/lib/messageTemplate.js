@@ -13,7 +13,7 @@ With warm regards,
 {{groom_name}} & {{bride_name}}
 Majmui Shaadi`
 
-const TEMPLATE_KEY = 'majmui_shaadi_template_v2'
+const TEMPLATE_KEY = 'majmui_shaadi_template_v4'
 
 export function getTemplate() {
   return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE
@@ -46,6 +46,18 @@ export function generateMessage({ recipientName, activeMembers, events, memberEv
     .replaceAll('{{events_with_members}}', eventsBlock)
     .replaceAll('{{bride_name}}', brideName || 'the Bride')
     .replaceAll('{{groom_name}}', groomName || 'the Groom')
+}
+
+export function generateRsvpMessage(recipientName, rsvpUrl) {
+  return `Dear ${recipientName},
+
+The Majmui Shaadi is fast approaching! 
+
+Please click the link below to confirm your family's attendance for the wedding events:
+${rsvpUrl}
+
+Jazakallah,
+Majmui Shaadi Management`
 }
 
 function formatDate(dateStr) {

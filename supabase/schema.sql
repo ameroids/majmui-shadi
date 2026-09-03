@@ -100,20 +100,17 @@ create table if not exists invitations (
   sent_at timestamptz
 );
 
-create table if not exists invitation_members (
+create table if not exists invitation_member_events (
   id uuid primary key default gen_random_uuid(),
   invitation_id uuid not null references invitations(id) on delete cascade,
-  invitee_id uuid not null references invitees(id) on delete cascade
+  invitee_id uuid not null references invitees(id) on delete cascade,
+  event_id uuid not null references events(id) on delete cascade,
+  rsvp_status text not null default 'Pending' check (rsvp_status in ('Pending', 'Attending', 'Not Attending')),
+  unique(invitation_id, invitee_id, event_id)
 );
 
-create table if not exists invitation_events (
-  id uuid primary key default gen_random_uuid(),
-  invitation_id uuid not null references invitations(id) on delete cascade,
-  event_id uuid not null references events(id) on delete cascade
-);
-
-create index if not exists idx_invitation_members_invitation on invitation_members(invitation_id);
-create index if not exists idx_invitation_events_invitation on invitation_events(invitation_id);
+create index if not exists idx_invitation_member_events_invitation on invitation_member_events(invitation_id);
+create index if not exists idx_invitation_member_events_invitee on invitation_member_events(invitee_id);
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security — bride/groom accounts only see their own invitee and
@@ -122,8 +119,7 @@ create index if not exists idx_invitation_events_invitation on invitation_events
 -- ---------------------------------------------------------------------------
 alter table invitees enable row level security;
 alter table invitations enable row level security;
-alter table invitation_members enable row level security;
-alter table invitation_events enable row level security;
+alter table invitation_member_events enable row level security;
 
 create policy "Bride/groom manage their own invitees"
   on invitees for all

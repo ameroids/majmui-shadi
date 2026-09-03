@@ -10,6 +10,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import TNCDashboard from './pages/TNCDashboard'
 import TNCEventReportsPage from './pages/TNCEventReportsPage'
 import TNCIndividualReportsPage from './pages/TNCIndividualReportsPage'
+import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
+import RSVPPage from './pages/RSVPPage'
 
 export default function App() {
   return (
@@ -18,6 +20,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+            <Route path="/rsvp/:id" element={<RSVPPage />} />
 
             <Route path="/dashboard" element={
               <ProtectedRoute roles={['bride', 'groom']}><BrideGroomDashboard /></ProtectedRoute>
@@ -41,6 +44,9 @@ export default function App() {
             <Route path="/admin/users" element={
               <ProtectedRoute roles={['admin']}><AdminDashboard tab="users" /></ProtectedRoute>
             } />
+            <Route path="/admin/phases" element={
+              <ProtectedRoute roles={['admin']}><AdminDashboard tab="phases" /></ProtectedRoute>
+            } />
             <Route path="/admin/template" element={
               <ProtectedRoute roles={['admin']}><AdminDashboard tab="template" /></ProtectedRoute>
             } />
@@ -53,6 +59,9 @@ export default function App() {
             } />
             <Route path="/tnc/individual" element={
               <ProtectedRoute roles={['tnc', 'admin']}><TNCIndividualReportsPage /></ProtectedRoute>
+            } />
+            <Route path="/tnc/rsvp" element={
+              <ProtectedRoute roles={['tnc', 'admin']}><TNCRsvpReportsPage /></ProtectedRoute>
             } />
 
             <Route path="*" element={<Navigate to="/" replace />} />
