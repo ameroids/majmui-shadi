@@ -144,7 +144,6 @@ export default function TNCEventReportsPage() {
                 <table className="w-full text-sm min-w-[500px]">
                   <thead className="bg-ivory-soft border-b border-ivory-line">
                     <tr className="text-left text-xs uppercase tracking-wide text-ink/45">
-                      <th className="py-3 px-4">ITS Number</th>
                       <th className="py-3 px-4">Member</th>
                       <th className="py-3 px-4">Invited By</th>
                     </tr>
@@ -152,8 +151,7 @@ export default function TNCEventReportsPage() {
                   <tbody className="divide-y divide-ivory-line">
                     {listToRender.map((guest, idx) => (
                       <tr key={guest.member_id + idx} className="hover:bg-ivory-soft/50 transition">
-                        <td className="py-3 px-4 font-mono text-emerald-deep align-top">{guest.member_its}</td>
-                        <td className="py-3 px-4 align-top">
+                        <td className="py-3 px-4 font-medium text-ink align-top">
                           <div className="font-medium text-ink">{guest.full_name}</div>
                           <div className="text-xs text-ink/50">{guest.surname} Family</div>
                         </td>

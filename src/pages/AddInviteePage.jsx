@@ -8,7 +8,7 @@ import { Field, Input, Select, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { searchFamilyByHofIts, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee } from '../lib/db'
+import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee } from '../lib/db'
 import Modal from '../components/ui/Modal'
 
 const NAV = [
@@ -27,11 +27,13 @@ export default function AddInviteePage() {
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  const [its, setIts] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [family, setFamily] = useState(null)
+  const [families, setFamilies] = useState([])
+  const [selectedFamily, setSelectedFamily] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [memberMobiles, setMemberMobiles] = useState({})
   const [saving, setSaving] = useState(false)
 
   const [showManualForm, setShowManualForm] = useState(false)
@@ -55,21 +57,23 @@ export default function AddInviteePage() {
   useEffect(() => { refreshList() }, []) // eslint-disable-line
 
   const resetSearch = () => {
-    setFamily(null)
+    setFamilies([])
+    setSelectedFamily(null)
     setSearched(false)
     setSelectedIds(new Set())
+    setMemberMobiles({})
     setShowManualForm(false)
     setEditingFamilyId(null)
-    setManualHofIts(its)
+    setManualHofIts('')
   }
 
-  const handleSearch = async (eOrIts) => {
-    let searchIts = its
-    if (typeof eOrIts === 'string') {
-      searchIts = eOrIts
-      setIts(eOrIts)
+  const handleSearch = async (eOrQuery) => {
+    let q = searchQuery
+    if (typeof eOrQuery === 'string') {
+      q = eOrQuery
+      setSearchQuery(eOrQuery)
     } else {
-      eOrIts?.preventDefault()
+      eOrQuery?.preventDefault()
     }
 
     if (user.can_add_invitees === false) {
@@ -81,22 +85,32 @@ export default function AddInviteePage() {
       return
     }
 
-    if (!searchIts.trim()) return
+    if (!q.trim()) return
     setSearching(true)
     setSearched(false)
-    const result = await searchFamilyByHofIts(searchIts.trim())
+    const result = await searchFamiliesByName(q.trim())
     setSearching(false)
     setSearched(true)
-    setFamily(result)
-    setManualHofIts(searchIts.trim())
+    setFamilies(result)
+    setManualHofIts('')
     setShowManualForm(false)
     setEditingFamilyId(null)
-    if (result) {
-      // pre-check members already invited by this user
-      const already = myFamilies.find((f) => f.family_id === result.id)
-      const preselected = new Set((already?.members || []).map((m) => m.member_id))
-      setSelectedIds(preselected)
-    }
+    
+    setSelectedFamily(null)
+  }
+
+  const handleSelectFamily = (fam) => {
+    setSelectedFamily(fam)
+    const already = myFamilies.find((f) => f.family_id === fam.id)
+    const preselected = new Set((already?.members || []).map((m) => m.member_id))
+    setSelectedIds(preselected)
+
+    const mobiles = {}
+    fam.members.forEach(m => {
+      const alreadyInvited = already?.members?.find(am => am.member_id === m.id)
+      mobiles[m.id] = alreadyInvited?.mobile || ''
+    })
+    setMemberMobiles(mobiles)
   }
 
   const toggleMember = (memberId) => {
@@ -108,14 +122,22 @@ export default function AddInviteePage() {
   }
 
   const handleSaveSelected = async () => {
+    const selectedMembers = selectedFamily.members
+      .filter((m) => selectedIds.has(m.id))
+      .map(m => ({ ...m, mobile: memberMobiles[m.id] || '' }))
+
+    if (selectedMembers.length > 0 && !selectedMembers.some(m => m.mobile.trim())) {
+      showToast('Please enter a mobile number for at least one selected member.', 'error')
+      return
+    }
+
     setSaving(true)
     try {
-      const selectedMembers = family.members.filter((m) => selectedIds.has(m.id))
-      await saveInvitees(user.id, family, selectedMembers)
-      showToast(`${selectedMembers.length} member(s) added from the ${family.surname} family.`)
+      await saveInvitees(user.id, selectedFamily, selectedMembers)
+      showToast(`${selectedMembers.length} member(s) added from the ${selectedFamily.surname} family.`)
       await refreshList()
       resetSearch()
-      setIts('')
+      setSearchQuery('')
     } catch (err) {
       showToast(err.message || 'Error saving invitees', 'error')
     } finally {
@@ -129,10 +151,10 @@ export default function AddInviteePage() {
     setManualMembers((rows) => rows.map((r) => (r.key === key ? { ...r, [field]: value } : r)))
 
   const handleEditFamily = () => {
-    setEditingFamilyId(family.id)
-    setManualHofIts(family.hof_its)
-    setManualSurname(family.surname)
-    setManualMembers(family.members.map(m => ({
+    setEditingFamilyId(selectedFamily.id)
+    setManualHofIts(selectedFamily.hof_its)
+    setManualSurname(selectedFamily.surname)
+    setManualMembers(selectedFamily.members.map(m => ({
       ...m,
       key: m.id || Math.random().toString(36).slice(2)
     })))
@@ -145,9 +167,14 @@ export default function AddInviteePage() {
       setManualError('HOF ITS and Family/Surname are required.')
       return
     }
-    const invalid = manualMembers.some((m) => !m.full_name.trim() || !m.mobile.trim())
-    if (invalid) {
-      setManualError('Every member needs a full name and mobile number.')
+    const missingName = manualMembers.some((m) => !m.full_name.trim())
+    if (missingName) {
+      setManualError('Every member needs a full name.')
+      return
+    }
+    const hasMobile = manualMembers.some((m) => m.mobile.trim())
+    if (!hasMobile) {
+      setManualError('Please provide a mobile number for at least one member.')
       return
     }
     setSaving(true)
@@ -161,7 +188,8 @@ export default function AddInviteePage() {
         // Save all members of the updated family to the invitee list so new additions are included.
         await saveInvitees(user.id, updatedFamily, updatedFamily.members)
         
-        setFamily(updatedFamily)
+        setFamilies([updatedFamily])
+        setSelectedFamily(updatedFamily)
         setShowManualForm(false)
         setEditingFamilyId(null)
         showToast('Family details updated successfully.')
@@ -176,7 +204,7 @@ export default function AddInviteePage() {
         showToast(`${newFamily.members.length} manually added invitee(s) saved for the ${newFamily.surname} family.`)
         await refreshList()
         resetSearch()
-        setIts('')
+        setSearchQuery('')
         setManualSurname('')
         setManualHofIts('')
         setManualMembers([emptyManualMember()])
@@ -202,7 +230,7 @@ export default function AddInviteePage() {
     <DashboardLayout navItems={NAV} activePath="/dashboard/add-invitee" roleLabel={user.role}>
       <h1 className="font-display text-3xl font-semibold text-emerald-deep">Add Invitee</h1>
       <p className="text-sm text-ink/60 mt-1 mb-6 max-w-xl">
-        Search a family by their Head-of-Family ITS number, then choose exactly which members
+        Search a family by their name, then choose exactly which members
         to invite. Selecting members here never changes the original family record.
       </p>
 
@@ -210,11 +238,9 @@ export default function AddInviteePage() {
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Input
-              value={its}
-              onChange={(e) => setIts(e.target.value)}
-              placeholder="Enter HOF ITS Number"
-              inputMode="numeric"
-              className="font-mono"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or surname"
             />
           </div>
           <Button type="submit" loading={searching} className="sm:w-40">
@@ -224,25 +250,68 @@ export default function AddInviteePage() {
 
         {searching && (
           <div className="flex items-center gap-2 text-sm text-ink/50 mt-4">
-            <Spinner className="h-4 w-4" /> Looking up ITS {its}…
+            <Spinner className="h-4 w-4" /> Looking up "{searchQuery}"…
           </div>
         )}
 
-        {!searching && searched && family && !showManualForm && (
-          <FamilyResult
-            family={family}
-            selectedIds={selectedIds}
-            onToggle={toggleMember}
-            onSave={handleSaveSelected}
-            saving={saving}
-            alreadyInvited={new Set((myFamilies.find((f) => f.family_id === family.id)?.members || []).map((m) => m.member_id))}
-            onEditFamily={family.is_manual ? handleEditFamily : null}
-          />
+        {!searching && searched && families.length > 0 && !selectedFamily && !showManualForm && (
+          <div className="mt-5 space-y-3">
+            <h3 className="text-sm font-semibold text-emerald-deep mb-2">Search Results:</h3>
+            {families.map((fam) => {
+              const q = searchQuery.trim().toLowerCase()
+              const matchedMembers = fam.members.filter(m => m.full_name.toLowerCase().includes(q) || m.mobile?.includes(q))
+              
+              const displayTitle = matchedMembers.length > 0 
+                ? matchedMembers.map(m => m.full_name).join(', ') 
+                : `${fam.surname} Family`
+                
+              const displaySubtitle = matchedMembers.length > 0
+                ? `${fam.surname} Family · ${fam.members.length} members`
+                : `${fam.members.length} members`
+
+              return (
+                <div 
+                  key={fam.id} 
+                  className="flex items-center justify-between p-3 rounded-lg border border-ivory-line bg-white hover:bg-emerald-soft/30 transition-colors cursor-pointer tap-target"
+                  onClick={() => handleSelectFamily(fam)}
+                >
+                  <div>
+                    <div className="font-medium text-emerald-deep">{displayTitle}</div>
+                    <div className="text-xs text-ink/60">{displaySubtitle}</div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleSelectFamily(fam); }}>
+                    View Family
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
         )}
 
-        {!searching && searched && !family && !showManualForm && (
+        {!searching && searched && selectedFamily && !showManualForm && (
+          <div>
+            <div className="mt-5 mb-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedFamily(null)} className="text-xs">
+                ← Back to results
+              </Button>
+            </div>
+            <FamilyResult
+              family={selectedFamily}
+              selectedIds={selectedIds}
+              onToggle={toggleMember}
+              memberMobiles={memberMobiles}
+              setMemberMobiles={setMemberMobiles}
+              onSave={handleSaveSelected}
+              saving={saving}
+              alreadyInvited={new Set((myFamilies.find((f) => f.family_id === selectedFamily.id)?.members || []).map((m) => m.member_id))}
+              onEditFamily={selectedFamily.is_manual ? handleEditFamily : null}
+            />
+          </div>
+        )}
+
+        {!searching && searched && families.length === 0 && !showManualForm && (
           <div className="mt-5 rounded-xl border border-dashed border-ivory-line bg-ivory-soft p-5 text-center">
-            <p className="text-sm font-medium text-ink/70">No family found for ITS "{its}".</p>
+            <p className="text-sm font-medium text-ink/70">No family found for "{searchQuery}".</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => {
               if (user.can_add_invitees === false) {
                 setLockedModal({
@@ -286,7 +355,7 @@ export default function AddInviteePage() {
         <div className="flex items-center gap-2 text-sm text-ink/50 py-8"><Spinner className="h-4 w-4" /> Loading…</div>
       ) : myFamilies.length === 0 ? (
         <Card className="p-6">
-          <EmptyState icon="👪" title="No invitees added yet" description="Search a family by ITS number above to get started." />
+          <EmptyState icon="👪" title="No invitees added yet" description="Search a family by name above to get started." />
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
@@ -295,11 +364,10 @@ export default function AddInviteePage() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-display text-lg font-semibold text-emerald-deep">{f.surname}</h3>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-ink/40">HOF ITS {f.hof_its}</span>
                   <button 
                     onClick={() => {
                       window.scrollTo({ top: 0, behavior: 'smooth' })
-                      handleSearch(f.hof_its)
+                      handleSearch(f.surname)
                     }}
                     className="text-xs font-semibold text-emerald-deep hover:text-emerald tap-target"
                   >
@@ -347,14 +415,10 @@ export default function AddInviteePage() {
   )
 }
 
-function FamilyResult({ family, selectedIds, onToggle, onSave, saving, alreadyInvited, onEditFamily }) {
+function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberMobiles, onSave, saving, alreadyInvited, onEditFamily }) {
   return (
     <div className="mt-5 rounded-xl border border-ivory-line overflow-hidden">
-      <div className="bg-emerald-soft px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-emerald-deep/70 font-semibold">HOF: {family.members.find(m => m.relationship === 'HOF')?.full_name || family.members[0].full_name}</p>
-          <p className="font-mono text-xs text-emerald-deep/60">ITS: {family.hof_its}</p>
-        </div>
+      <div className="bg-emerald-soft px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-emerald-deep bg-white/60 rounded-full px-3 py-1">
             {family.surname} family · {family.members.length} member{family.members.length !== 1 ? 's' : ''}
@@ -368,18 +432,31 @@ function FamilyResult({ family, selectedIds, onToggle, onSave, saving, alreadyIn
       </div>
       <ul className="divide-y divide-ivory-line">
         {family.members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
-            <Checkbox
-              id={`mem-${m.id}`}
-              checked={selectedIds.has(m.id)}
-              onChange={() => onToggle(m.id)}
-              label={
-                <span>
-                  <span className="font-medium">{m.full_name}</span>
-                  <span className="text-ink/45 text-xs"> · {m.relationship} · {m.mobile}</span>
-                </span>
-              }
-            />
+          <li key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3">
+            <div className="flex-1">
+              <Checkbox
+                id={`mem-${m.id}`}
+                checked={selectedIds.has(m.id)}
+                onChange={() => onToggle(m.id)}
+                label={
+                  <span>
+                    <span className="font-medium">{m.full_name}</span>
+                    <span className="text-ink/45 text-xs"> · {m.relationship}</span>
+                  </span>
+                }
+              />
+            </div>
+            {selectedIds.has(m.id) && (
+              <div className="flex-1 max-w-xs">
+                <Input 
+                  placeholder="Enter mobile number" 
+                  value={memberMobiles[m.id] || ''} 
+                  onChange={(e) => setMemberMobiles(prev => ({ ...prev, [m.id]: e.target.value }))} 
+                  className="h-8 text-sm"
+                  inputMode="numeric"
+                />
+              </div>
+            )}
             {alreadyInvited.has(m.id) && <Badge tone="Ready">Added</Badge>}
           </li>
         ))}
@@ -424,7 +501,7 @@ function ManualEntryForm({
               <Field label="Full Name" required>
                 <Input value={m.full_name} onChange={(e) => updateManualRow(m.key, 'full_name', e.target.value)} />
               </Field>
-              <Field label="Mobile Number" required>
+              <Field label="Mobile Number">
                 <Input value={m.mobile} onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value)} inputMode="numeric" placeholder="98XXXXXXXX" />
               </Field>
             </div>

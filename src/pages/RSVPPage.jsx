@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPublicInvitationDetails, submitRsvp } from '../lib/db'
+import { getPublicInvitationDetails, submitRsvp, getGlobalRsvpStatus } from '../lib/db'
 import Button from '../components/ui/Button'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
 
 export default function RSVPPage() {
@@ -11,6 +11,7 @@ export default function RSVPPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
+  const [globalRsvpOpen, setGlobalRsvpOpen] = useState(true)
   
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
@@ -21,8 +22,12 @@ export default function RSVPPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { invitation: invData, invitees: inviteesData, error: dbErr } = await getPublicInvitationDetails(id)
+        const [{ invitation: invData, invitees: inviteesData, error: dbErr }, rsvpOpen] = await Promise.all([
+          getPublicInvitationDetails(id),
+          getGlobalRsvpStatus()
+        ])
         
+        setGlobalRsvpOpen(rsvpOpen)
         if (dbErr) {
           setError(dbErr)
         } else {
@@ -89,8 +94,8 @@ export default function RSVPPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-ivory">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-deep" />
       </div>
     )
   }
@@ -128,14 +133,14 @@ export default function RSVPPage() {
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
         
         {/* Header Section */}
-        <div className="bg-primary/5 p-8 text-center border-b border-gray-100">
+        <div className="bg-emerald-soft/30 p-8 text-center border-b border-ivory-line">
           <div className="flex justify-center mb-6">
             <Logo className="h-12 w-auto" />
           </div>
-          <h1 className="text-3xl font-serif text-primary mb-2">You're Invited!</h1>
+          <h1 className="text-3xl font-display text-emerald-deep mb-2">You're Invited!</h1>
           {invitation?.invited_by && (
-            <p className="text-gray-600 text-lg">
-              Invited by <span className="font-medium text-gray-900">{invitation.invited_by}</span>
+            <p className="text-ink/70 text-lg">
+              Invited by <span className="font-medium text-ink">{invitation.invited_by}</span>
             </p>
           )}
           {invitation?.surname && (
@@ -161,30 +166,44 @@ export default function RSVPPage() {
                     {invitee.events.map(ev => (
                       <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <span className="text-gray-700 font-medium">{ev.event_name}</span>
-                        <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200 w-full sm:w-auto justify-center">
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(ev.junction_id, 'Attending')}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                              responses[ev.junction_id] === 'Attending' 
-                                ? 'bg-primary text-white shadow-sm' 
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            Attending
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(ev.junction_id, 'Not Attending')}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                              responses[ev.junction_id] === 'Not Attending' 
-                                ? 'bg-red-500 text-white shadow-sm' 
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            Not Attending
-                          </button>
-                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        {!globalRsvpOpen ? (
+                          <span className={`px-4 py-1.5 text-sm font-medium rounded-md text-center ${
+                            responses[ev.junction_id] === 'Attending' 
+                              ? 'bg-emerald/10 text-emerald-deep' 
+                              : responses[ev.junction_id] === 'Not Attending'
+                                ? 'bg-wine/10 text-wine'
+                                : 'bg-ivory-soft text-ink/60'
+                          }`}>
+                            {responses[ev.junction_id]}
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(ev.junction_id, 'Attending')}
+                              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
+                                responses[ev.junction_id] === 'Attending' 
+                                  ? 'bg-emerald text-white shadow-sm' 
+                                  : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
+                              }`}
+                            >
+                              Attending
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(ev.junction_id, 'Not Attending')}
+                              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
+                                responses[ev.junction_id] === 'Not Attending' 
+                                  ? 'bg-wine text-white shadow-sm' 
+                                  : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
+                              }`}
+                            >
+                              Not Attending
+                            </button>
+                          </>
+                        )}
+                      </div>
                       </div>
                     ))}
                   </div>
@@ -193,25 +212,35 @@ export default function RSVPPage() {
             </div>
             
             <div className="pt-6 border-t border-gray-100">
-              {formError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center">
-                  {formError}
+              {!globalRsvpOpen ? (
+                <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                  <p className="text-rose-700 font-medium">RSVPs are now closed.</p>
+                  <p className="text-sm text-rose-600/80 mt-1">Thank you for your overwhelming response.</p>
                 </div>
+              ) : (
+                <>
+                  {formError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center flex items-center justify-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {formError}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full text-lg py-4 rounded-xl font-medium shadow-md hover:shadow-lg transition-all"
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit RSVP'
+                    )}
+                  </Button>
+                </>
               )}
-              <Button
-                type="submit"
-                className="w-full text-lg py-4 rounded-xl font-medium shadow-md hover:shadow-lg transition-all"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit RSVP'
-                )}
-              </Button>
             </div>
           </form>
         </div>

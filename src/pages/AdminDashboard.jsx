@@ -119,7 +119,7 @@ function Overview({ stats, events }) {
 function FamiliesTable({ families, onRefresh }) {
   const { showToast } = useToast()
   const [q, setQ] = useState('')
-  const filtered = families.filter((f) => f.surname.toLowerCase().includes(q.toLowerCase()) || f.hof_its.includes(q))
+  const filtered = families.filter((f) => f.surname.toLowerCase().includes(q.toLowerCase()))
   
   const handleDeleteAll = async () => {
     if (confirm('⚠️ WARNING: Are you absolutely sure you want to delete ALL families? This will also wipe out all invitees and generated invitations across all accounts! This action cannot be undone.')) {
@@ -138,7 +138,7 @@ function FamiliesTable({ families, onRefresh }) {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="font-display text-xl font-semibold text-emerald-deep">All Families</h2>
         <div className="flex items-center gap-3">
-          <Input placeholder="Search surname or ITS…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+          <Input placeholder="Search surname…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
           <Button variant="ghost" className="text-wine border border-wine/20 hover:bg-wine/5" onClick={handleDeleteAll}>
             Delete All Families
           </Button>
@@ -149,14 +149,13 @@ function FamiliesTable({ families, onRefresh }) {
           <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
-                <th className="py-2 px-2">Surname</th><th className="py-2 px-2">HOF ITS</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Source</th>
+                <th className="py-2 px-2">Surname</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Source</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((f) => (
                 <tr key={f.id} className="border-b border-ivory-line last:border-0">
                   <td className="py-3 px-2 font-medium">{f.surname}</td>
-                  <td className="py-3 px-2 font-mono text-xs">{f.hof_its}</td>
                   <td className="py-3 px-2">{f.members.length}</td>
                   <td className="py-3 px-2">{f.manual ? <Badge tone="default">Manual entry</Badge> : <Badge tone="Sent">Master data</Badge>}</td>
                 </tr>
@@ -393,8 +392,21 @@ function PhasesTable({ users, onRefresh }) {
   const { showToast } = useToast()
   const brides = users.filter((u) => u.role === 'bride')
   const grooms = users.filter((u) => u.role === 'groom')
+  const admin = users.find((u) => u.role === 'admin')
   
   const [confirmState, setConfirmState] = useState({ open: false, title: '', message: '', action: null, isDanger: false })
+
+  const handleGlobalRsvpToggle = async () => {
+    if (!admin) return
+    const newValue = !(admin.can_send_rsvps !== false)
+    try {
+      await updateUserPermissions(admin.id, { can_send_rsvps: newValue })
+      showToast(`Public RSVP Form is now ${newValue ? 'OPEN' : 'CLOSED'}`)
+      onRefresh()
+    } catch (err) {
+      showToast(`Failed to update global setting: ${err.message}`, 'error')
+    }
+  }
 
   const handleToggle = (u, field) => {
     const newValue = !u[field]
@@ -492,7 +504,25 @@ function PhasesTable({ users, onRefresh }) {
   )
 
   return (
-    <div className="grid lg:grid-cols-2 gap-5">
+    <>
+      <Card className="p-5 sm:p-6 mb-6">
+        <h2 className="font-display text-xl font-semibold text-emerald-deep mb-2">Global Settings</h2>
+        <p className="text-sm text-ink/60 mb-5">These settings affect the entire platform.</p>
+        <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30">
+          <div>
+            <p className="font-medium text-emerald-deep">Accept Public RSVPs</p>
+            <p className="text-xs text-ink/60 mt-1">If closed, guests will not be able to submit their RSVP response via the shared link.</p>
+          </div>
+          {admin && (
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={admin.can_send_rsvps !== false} onChange={handleGlobalRsvpToggle} />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
+            </label>
+          )}
+        </div>
+      </Card>
+      
+      <div className="grid lg:grid-cols-2 gap-5">
       <Card className="p-0 overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-ivory-line bg-ivory-soft/50">
           <div className="flex flex-col gap-3">
@@ -581,6 +611,7 @@ function PhasesTable({ users, onRefresh }) {
         <p className="text-sm text-ink/70 leading-relaxed">{confirmState.message}</p>
       </Modal>
     </div>
+    </>
   )
 }
 

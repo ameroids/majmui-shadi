@@ -99,6 +99,47 @@ export async function searchFamilyByHofIts(hofIts) {
   return null
 }
 
+export async function searchFamiliesByName(nameQuery) {
+  if (!nameQuery || !nameQuery.trim()) return []
+  
+  const searchStr = `%${nameQuery.trim()}%`
+
+  // 1. Search families by surname
+  const { data: surnameMatches } = await supabase
+    .from('families')
+    .select('id')
+    .ilike('surname', searchStr)
+
+  // 2. Search members by full_name
+  const { data: memberMatches } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .ilike('full_name', searchStr)
+
+  // 3. Combine family IDs
+  const familyIds = new Set()
+  if (surnameMatches) surnameMatches.forEach(f => familyIds.add(f.id))
+  if (memberMatches) memberMatches.forEach(m => familyIds.add(m.family_id))
+
+  if (familyIds.size === 0) return []
+
+  // 4. Fetch the full families with their members
+  const { data: families, error } = await supabase
+    .from('families')
+    .select('id, hof_its, surname, is_manual, family_members(*)')
+    .in('id', Array.from(familyIds))
+    
+  if (error || !families) return []
+  
+  return families.map(f => ({
+    id: f.id,
+    hof_its: f.hof_its,
+    surname: f.surname,
+    is_manual: f.is_manual,
+    members: f.family_members,
+  }))
+}
+
 export async function createManualFamily({ hof_its, surname, members }) {
   const { data: family, error: famError } = await supabase
     .from('families')
@@ -765,6 +806,19 @@ export async function getAllUsersSafe() {
     .order('username', { ascending: true })
   if (error) return []
   return users
+}
+
+// --------------------------- Global Settings ---------------------------------
+
+export async function getGlobalRsvpStatus() {
+  const { data } = await supabase.from('users').select('can_send_rsvps').eq('role', 'admin').maybeSingle()
+  // Default to open if no admin found or not set
+  return data ? data.can_send_rsvps !== false : true
+}
+
+export async function setGlobalRsvpStatus(isOpen) {
+  const { error } = await supabase.from('users').update({ can_send_rsvps: isOpen }).eq('role', 'admin')
+  if (error) throw error
 }
 
 // --------------------------- Public RSVP -------------------------------------

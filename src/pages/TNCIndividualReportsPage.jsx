@@ -183,9 +183,9 @@ export default function TNCIndividualReportsPage() {
                         <div 
                           key={e.id}
                           className={`px-4 py-3 cursor-pointer hover:bg-emerald/5 transition-colors border-b border-ivory-line/50 last:border-0 ${e.id === filterEventId ? 'bg-emerald/10 text-emerald-deep font-semibold' : 'text-ink'}`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                          onMouseDown={(ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
                             setFilterEventId(e.id);
                             setEventDropdownOpen(false);
                           }}
@@ -324,7 +324,6 @@ export default function TNCIndividualReportsPage() {
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <div className="text-xs font-mono font-medium text-emerald/80 mb-1 tracking-wider">#{inv.member_its}</div>
                         <h3 className="font-semibold text-lg text-ink leading-tight">{inv.full_name}</h3>
                         <p className="text-xs text-ink/50 mt-0.5">{inv.surname} Family</p>
                       </div>

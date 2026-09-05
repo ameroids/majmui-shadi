@@ -44,7 +44,7 @@ export default function TNCDashboard() {
 
   const q = query.trim().toLowerCase()
   const matchedFamilies = q
-    ? families.filter((f) => f.surname.toLowerCase().includes(q) || f.hof_its.includes(q) || f.members.some((m) => m.mobile?.includes(q) || m.full_name.toLowerCase().includes(q)))
+    ? families.filter((f) => f.surname.toLowerCase().includes(q) || f.members.some((m) => m.mobile?.includes(q) || m.full_name.toLowerCase().includes(q)))
     : []
   const matchedInvitations = q
     ? invitations.filter((i) => i.surname.toLowerCase().includes(q) || i.recipient_mobile.includes(q))
@@ -68,7 +68,7 @@ export default function TNCDashboard() {
           <Card className="p-5 sm:p-6 mb-8">
             <h2 className="font-display text-xl font-semibold text-emerald-deep mb-3">Search</h2>
             <Input
-              placeholder="Search by ITS number, family/surname, or mobile number…"
+              placeholder="Search by family/surname, name, or mobile number…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -85,7 +85,6 @@ export default function TNCDashboard() {
                         <div key={f.id} className="rounded-lg border border-ivory-line p-4">
                           <div className="flex justify-between">
                             <span className="font-semibold text-emerald-deep">{f.surname}</span>
-                            <span className="font-mono text-xs text-ink/40">{f.hof_its}</span>
                           </div>
                           <ul className="mt-2 space-y-1">
                             {f.members.map((m) => (

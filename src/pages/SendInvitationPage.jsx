@@ -179,7 +179,7 @@ export default function SendInvitationPage() {
                           Mark Sent
                         </Button>
                       )}
-                      {(inv.status === 'Sent' || inv.status === 'RSVP Sent' || inv.status === 'RSVPed') && (
+                      {inv.status === 'Sent' && (
                         <>
                           <Button variant="outline" size="sm" onClick={() => {
                             if (user.can_send_rsvps === false) {
@@ -192,24 +192,22 @@ export default function SendInvitationPage() {
                             }
                             handleSendRsvp(inv)
                           }}>
-                            {inv.status === 'RSVP Sent' || inv.status === 'RSVPed' ? 'Resend RSVP Link' : 'Send RSVP Link'}
+                            Send RSVP Link
                           </Button>
                           
-                          {inv.status !== 'RSVP Sent' && inv.status !== 'RSVPed' && (
-                            <Button variant="outline" size="sm" onClick={() => {
-                              if (user.can_send_rsvps === false) {
-                                setLockedModal({
-                                  open: true,
-                                  title: 'RSVP Phase Locked',
-                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                                })
-                                return
-                              }
-                              handleMarkRsvpSent(inv)
-                            }}>
-                              Mark RSVP Sent
-                            </Button>
-                          )}
+                          <Button variant="outline" size="sm" onClick={() => {
+                            if (user.can_send_rsvps === false) {
+                              setLockedModal({
+                                open: true,
+                                title: 'RSVP Phase Locked',
+                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                              })
+                              return
+                            }
+                            handleMarkRsvpSent(inv)
+                          }}>
+                            Mark RSVP Sent
+                          </Button>
                         </>
                       )}
                     </td>
@@ -402,7 +400,6 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
                     <span className="text-xs text-ink/45">{f.members.length} member{f.members.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
-                <p className="text-xs font-mono text-ink/40 mt-0.5">HOF ITS {f.hof_its}</p>
               </button>
             )})}
           </div>
@@ -435,14 +432,18 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
                       <div className="text-xs font-mono text-ink/40">{m.mobile}</div>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <input
-                        type="radio"
-                        name="representative"
-                        checked={representativeId === m.id}
-                        onChange={() => setRepresentativeId(m.id)}
-                        disabled={!activeMemberIds.has(m.id)}
-                        className="accent-emerald-deep cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                      />
+                      {m.mobile?.trim() ? (
+                        <input
+                          type="radio"
+                          name="representative"
+                          checked={representativeId === m.id}
+                          onChange={() => setRepresentativeId(m.id)}
+                          disabled={!activeMemberIds.has(m.id)}
+                          className="accent-emerald-deep cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-ink/30 uppercase font-semibold" title="Mobile number required to be a representative">No Mobile</span>
+                      )}
                     </td>
                     {events.map(e => (
                       <td key={e.id} className="py-3 px-4 text-center">
