@@ -21,6 +21,7 @@ const emptyManualMember = () => ({
   key: Math.random().toString(36).slice(2),
   full_name: '',
   mobile: '',
+  member_its: '',
 })
 
 export default function AddInviteePage() {
@@ -170,6 +171,11 @@ export default function AddInviteePage() {
     const missingName = manualMembers.some((m) => !m.full_name.trim())
     if (missingName) {
       setManualError('Every member needs a full name.')
+      return
+    }
+    const missingIts = manualMembers.some((m) => !(m.member_its || '').trim())
+    if (missingIts) {
+      setManualError('Every member needs an ITS number.')
       return
     }
     const hasMobile = manualMembers.some((m) => m.mobile.trim())
@@ -497,12 +503,15 @@ function ManualEntryForm({
                 <button onClick={() => removeManualRow(m.key)} className="text-xs text-wine font-medium tap-target">Remove</button>
               )}
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-3 gap-3">
               <Field label="Full Name" required>
                 <Input value={m.full_name} onChange={(e) => updateManualRow(m.key, 'full_name', e.target.value)} />
               </Field>
               <Field label="Mobile Number">
                 <Input value={m.mobile} onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value)} inputMode="numeric" placeholder="98XXXXXXXX" />
+              </Field>
+              <Field label="ITS" required>
+                <Input value={m.member_its || ''} onChange={(e) => updateManualRow(m.key, 'member_its', e.target.value)} inputMode="numeric" placeholder="e.g. 30987654" />
               </Field>
             </div>
           </div>
