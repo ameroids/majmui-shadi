@@ -8,7 +8,7 @@ import { Field, Input, Select, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee } from '../lib/db'
+import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility, createMassFakeInvitees } from '../lib/db'
 import Modal from '../components/ui/Modal'
 
 const NAV = [
@@ -38,6 +38,10 @@ export default function AddInviteePage() {
   const [saving, setSaving] = useState(false)
 
   const [showManualForm, setShowManualForm] = useState(false)
+  const [phaseVisibility, setPhaseVisibility] = useState(() => {
+    const cached = sessionStorage.getItem('phase_visibility')
+    return cached ? JSON.parse(cached) : { phase_1_visible: true, phase_2_visible: true, phase_3_visible: true }
+  })
   const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
   const [editingFamilyId, setEditingFamilyId] = useState(null)
   const [manualSurname, setManualSurname] = useState('')
@@ -50,12 +54,33 @@ export default function AddInviteePage() {
 
   const refreshList = async () => {
     setLoadingList(true)
-    const list = await getFamiliesWithInviteesForUser(user.id)
+    const [list, pv] = await Promise.all([
+      getFamiliesWithInviteesForUser(user.id),
+      getGlobalPhaseVisibility()
+    ])
     setMyFamilies(list)
+    setPhaseVisibility(pv)
+    sessionStorage.setItem('phase_visibility', JSON.stringify(pv))
     setLoadingList(false)
   }
 
+  const handleMassTest = async () => {
+    setSaving(true)
+    try {
+      await createMassFakeInvitees(user.id)
+      showToast('Successfully generated 50 fake invitees for testing.', 'success')
+      refreshList()
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => { refreshList() }, []) // eslint-disable-line
+
+  const totalInvitees = myFamilies.reduce((sum, f) => sum + (f.members?.length || 0), 0)
+  const extraThaals = user.extra_thaals || 0
 
   const resetSearch = () => {
     setFamilies([])
@@ -127,6 +152,8 @@ export default function AddInviteePage() {
       .filter((m) => selectedIds.has(m.id))
       .map(m => ({ ...m, mobile: memberMobiles[m.id] || '' }))
 
+
+
     if (selectedMembers.length > 0 && !selectedMembers.some(m => m.mobile.trim())) {
       showToast('Please enter a mobile number for at least one selected member.', 'error')
       return
@@ -183,6 +210,10 @@ export default function AddInviteePage() {
       setManualError('Please provide a mobile number for at least one member.')
       return
     }
+
+    const currentFamilyMembersCount = editingFamilyId ? (myFamilies.find(f => f.family_id === editingFamilyId)?.members?.length || 0) : 0
+    const additionalMembers = manualMembers.length - currentFamilyMembersCount
+
     setSaving(true)
     try {
       if (editingFamilyId) {
@@ -232,13 +263,41 @@ export default function AddInviteePage() {
     refreshList()
   }
 
+  const filteredNav = NAV.filter(n => {
+    if (n.path === '/dashboard/add-invitee' && !phaseVisibility.phase_1_visible) return false
+    if (n.path === '/dashboard/send-invitation' && !phaseVisibility.phase_2_visible) return false
+    return true
+  })
+
   return (
-    <DashboardLayout navItems={NAV} activePath="/dashboard/add-invitee" roleLabel={user.role}>
-      <h1 className="font-display text-3xl font-semibold text-emerald-deep">Add Invitee</h1>
-      <p className="text-sm text-ink/60 mt-1 mb-6 max-w-xl">
-        Search a family by their name, then choose exactly which members
-        to invite. Selecting members here never changes the original family record.
-      </p>
+    <DashboardLayout navItems={filteredNav} activePath="/dashboard/add-invitee" roleLabel={user.role}>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="flex-1">
+          <h1 className="font-display text-3xl font-semibold text-emerald-deep">Add Invitee</h1>
+          <p className="text-sm text-ink/60 mt-1 max-w-xl">
+            Search a family by their name, then choose exactly which members
+            to invite. Selecting members here never changes the original family record.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="ghost" className="border border-emerald/20 text-emerald-deep" onClick={handleMassTest} disabled={saving}>
+            + Generate 50 Fakes
+          </Button>
+          <Button onClick={() => setShowManualForm(true)}>+ Add Custom Invitee</Button>
+          {extraThaals > 0 && (
+            <div className="bg-gold-light/20 px-4 py-3 rounded-lg border border-gold/40 text-center min-w-[100px]">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gold-deep mb-1">Extra Thaals</div>
+              <div className="font-display text-2xl font-semibold text-gold-deep">{extraThaals}</div>
+            </div>
+          )}
+          <div className="bg-ivory-soft px-4 py-3 rounded-lg border border-ivory-line text-center min-w-[120px]">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-ink/50 mb-1">People Added</div>
+            <div className="font-display text-2xl font-semibold text-emerald-deep">
+              {totalInvitees}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <Card className="p-5 sm:p-6 mb-8">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">

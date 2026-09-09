@@ -5,13 +5,14 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { Input, Select } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
-import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEvents } from '../lib/db'
+import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEvents, getBridesAndGrooms } from '../lib/db'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
   { path: '/tnc/reports', label: 'Event Reports', icon: '📊' },
   { path: '/tnc/individual', label: 'Individual Reports', icon: '👤' },
-  { path: '/tnc/rsvp', label: 'RSVP Reports', icon: '✉️' }
+  { path: '/tnc/rsvp', label: 'RSVP Reports', icon: '✉️' },
+  { path: '/tnc/thaals', label: 'Extra Thaals', icon: '🍲' }
 ]
 
 export default function TNCDashboard() {

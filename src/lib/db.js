@@ -481,7 +481,7 @@ export async function getAllInvitees() {
 export async function getBridesAndGrooms() {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, username, display_name, role')
+    .select('id, username, display_name, role, extra_thaals')
     .in('role', ['bride', 'groom'])
     .order('display_name', { ascending: true })
   
@@ -587,28 +587,38 @@ export async function getUserStats(userId) {
   const families = new Set(invitees.map((i) => i.family_id))
   
   // Calculate RSVPs from invitation_member_events
-  const { data: userInvs } = await supabase.from('invitations').select('id').eq('bride_groom_user_id', userId)
+  const { data: userInvs } = await supabase.from('invitations').select('id, status').eq('bride_groom_user_id', userId)
   const validInvIds = userInvs ? userInvs.map(i => i.id) : []
+  const rsvpSentInvIds = userInvs ? userInvs.filter(i => i.status === 'RSVP Sent').map(i => i.id) : []
 
   let rsvps = []
   if (validInvIds.length > 0) {
     const { data } = await supabase
       .from('invitation_member_events')
-      .select('invitee_id, rsvp_status')
+      .select('invitee_id, event_id, rsvp_status, invitation_id')
       .in('invitation_id', validInvIds)
     if (data) rsvps = data
   }
 
+  const seatsPerEvent = {}
   const personRsvps = new Map()
   if (rsvps) {
     rsvps.forEach(r => {
-      if (!personRsvps.has(r.invitee_id)) {
-        personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+      // Track seats per event for ALL invitations
+      if (r.event_id) {
+        seatsPerEvent[r.event_id] = (seatsPerEvent[r.event_id] || 0) + 1
       }
-      const s = personRsvps.get(r.invitee_id)
-      if (r.rsvp_status === 'Attending') s.attending++
-      else if (r.rsvp_status === 'Not Attending') s.notAttending++
-      else s.pending++
+
+      // ONLY track RSVPs for invitations that have RSVP Sent status
+      if (rsvpSentInvIds.includes(r.invitation_id)) {
+        if (!personRsvps.has(r.invitee_id)) {
+          personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+        }
+        const s = personRsvps.get(r.invitee_id)
+        if (r.rsvp_status === 'Attending') s.attending++
+        else if (r.rsvp_status === 'Not Attending') s.notAttending++
+        else s.pending++
+      }
     })
   }
 
@@ -619,6 +629,8 @@ export async function getUserStats(userId) {
     else if (s.notAttending > 0) notAttending++
   })
 
+  const { data: userRec } = await supabase.from('users').select('extra_thaals').eq('id', userId).single()
+
   return {
     totalInvitees: invitees.length,
     totalFamilies: families.size,
@@ -628,6 +640,9 @@ export async function getUserStats(userId) {
     attending,
     notAttending,
     pendingRsvps,
+    totalSeatsConsumed: rsvps.length,
+    seatsPerEvent,
+    extra_thaals: userRec?.extra_thaals || 0
   }
 }
 
@@ -774,13 +789,24 @@ export async function resetUserPhaseData(userId, phase) {
     if (updateErr) throw updateErr
   } else if (phase === 3) {
     // Phase 3: Reset RSVPs (Keep invitations, just set all RSVP status to Pending)
-    const { data: invs } = await supabase.from('invitations').select('id').eq('bride_groom_user_id', userId)
+    const { data: invs } = await supabase.from('invitations').select('id, status').eq('bride_groom_user_id', userId)
     if (invs && invs.length > 0) {
       const invIds = invs.map(i => i.id)
+      
+      // Reset all RSVP statuses to Pending
       const { error: rsvpErr } = await supabase.from('invitation_member_events')
         .update({ rsvp_status: 'Pending' })
         .in('invitation_id', invIds)
       if (rsvpErr) throw rsvpErr
+        
+      // Revert any invitations that were "RSVP Sent" back to "Sent"
+      const rsvpSentIds = invs.filter(i => i.status === 'RSVP Sent').map(i => i.id)
+      if (rsvpSentIds.length > 0) {
+        const { error: revertErr } = await supabase.from('invitations')
+          .update({ status: 'Sent' })
+          .in('id', rsvpSentIds)
+        if (revertErr) throw revertErr
+      }
     }
   }
 }
@@ -819,6 +845,104 @@ export async function getGlobalRsvpStatus() {
 export async function setGlobalRsvpStatus(isOpen) {
   const { error } = await supabase.from('users').update({ can_send_rsvps: isOpen }).eq('role', 'admin')
   if (error) throw error
+}
+
+export async function getGlobalPhaseVisibility() {
+  const { data } = await supabase.from('users').select('phase_1_visible, phase_2_visible, phase_3_visible').eq('role', 'admin').maybeSingle()
+  if (!data) return { phase_1_visible: true, phase_2_visible: true, phase_3_visible: true }
+  return {
+    phase_1_visible: data.phase_1_visible !== false,
+    phase_2_visible: data.phase_2_visible !== false,
+    phase_3_visible: data.phase_3_visible !== false,
+  }
+}
+
+export async function setGlobalPhaseVisibility(updates) {
+  const { error } = await supabase.from('users').update(updates).eq('role', 'admin')
+  if (error) throw error
+}
+
+
+export async function createMassFakeInvitees(userId) {
+  // Create 10 families with 5 members each
+  for (let i = 0; i < 10; i++) {
+    const manualId = 'manual_' + Math.random().toString(36).slice(2, 8)
+    const generatedSurname = `FakeFamily ${Math.random().toString(36).substring(2, 6)}`
+    
+    const { data: family, error: famError } = await supabase.from('families').insert([{
+      surname: generatedSurname,
+      is_manual: true,
+      hof_its: manualId
+    }]).select('id').single()
+
+    if (famError) throw new Error("Family error: " + famError.message)
+
+    if (family) {
+      // First create family_members
+      const membersToInsert = Array.from({ length: 5 }).map((_, j) => ({
+        family_id: family.id,
+        member_its: `${Math.floor(Math.random() * 100000000)}`,
+        full_name: `Fake Member ${j + 1}`,
+        mobile: `999999999${j}`
+      }))
+      
+      const { data: members, error: memError } = await supabase.from('family_members').insert(membersToInsert).select('id, member_its, full_name, mobile')
+      if (memError) throw new Error("Member error: " + memError.message)
+
+      // Then link them in invitees
+      if (members) {
+        const invitees = members.map(m => ({
+          family_id: family.id,
+          bride_groom_user_id: userId,
+          member_id: m.id,
+          hof_its: manualId,
+          surname: generatedSurname,
+          full_name: m.full_name,
+          mobile: m.mobile,
+          member_its: m.member_its
+        }))
+        const { error: invError } = await supabase.from('invitees').insert(invitees)
+        if (invError) throw new Error("Invitee error: " + invError.message)
+      }
+    }
+  }
+}
+
+export async function createMassFakeInvitations(userId) {
+  const [families, events] = await Promise.all([
+    getFamiliesWithInviteesForUser(userId),
+    getEvents()
+  ])
+  
+  const { data: existingInvs } = await supabase.from('invitations').select('family_id').eq('bride_groom_user_id', userId)
+  const existingFamIds = new Set((existingInvs || []).map(i => i.family_id))
+  
+  const uninvitedFamilies = families.filter(f => !existingFamIds.has(f.family_id))
+  
+  for (const family of uninvitedFamilies) {
+    if (!family.members || family.members.length === 0) continue
+    const recipient = family.members[0]
+    
+    const member_events = []
+    family.members.forEach(m => {
+      events.forEach(e => {
+        member_events.push({ member_id: m.id, event_id: e.id })
+      })
+    })
+    
+    await createInvitation(userId, {
+      family_id: family.family_id,
+      surname: family.surname,
+      hof_its: family.hof_its,
+      recipient: { 
+        member_id: recipient.member_id,
+        full_name: recipient.full_name,
+        mobile: recipient.mobile
+      },
+      message: "Mass generated test invitation",
+      member_events
+    })
+  }
 }
 
 // --------------------------- Public RSVP -------------------------------------

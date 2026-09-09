@@ -11,6 +11,7 @@ import TNCDashboard from './pages/TNCDashboard'
 import TNCEventReportsPage from './pages/TNCEventReportsPage'
 import TNCIndividualReportsPage from './pages/TNCIndividualReportsPage'
 import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
+import TNCExtraThaalsPage from './pages/TNCExtraThaalsPage'
 import RSVPPage from './pages/RSVPPage'
 
 export default function App() {
@@ -62,6 +63,9 @@ export default function App() {
             } />
             <Route path="/tnc/rsvp" element={
               <ProtectedRoute roles={['tnc', 'admin']}><TNCRsvpReportsPage /></ProtectedRoute>
+            } />
+            <Route path="/tnc/thaals" element={
+              <ProtectedRoute roles={['tnc', 'admin']}><TNCExtraThaalsPage /></ProtectedRoute>
             } />
 
             <Route path="*" element={<Navigate to="/" replace />} />

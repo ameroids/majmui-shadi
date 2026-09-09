@@ -8,7 +8,7 @@ import { Field, Input } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteAllFamilies, updateUserPermissions } from '../lib/db'
+import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteAllFamilies, updateUserPermissions, getGlobalPhaseVisibility, setGlobalPhaseVisibility } from '../lib/db'
 import { getTemplate, setTemplate, DEFAULT_TEMPLATE } from '../lib/messageTemplate'
 import Modal from '../components/ui/Modal'
 
@@ -29,13 +29,14 @@ export default function AdminDashboard({ tab = 'overview' }) {
   const [families, setFamilies] = useState([])
   const [users, setUsers] = useState([])
   const [events, setEvents] = useState([])
+  const [phaseVisibility, setPhaseVisibility] = useState({ phase_1_visible: true, phase_2_visible: true, phase_3_visible: true })
 
   const load = async () => {
     setLoading(true)
-    const [s, inv, fam, u, evt] = await Promise.all([
-      getAdminStats(), getAllInvitations(), getAllFamilies(), getAllUsersSafe(), getEvents(),
+    const [s, inv, fam, u, evt, pv] = await Promise.all([
+      getAdminStats(), getAllInvitations(), getAllFamilies(), getAllUsersSafe(), getEvents(), getGlobalPhaseVisibility()
     ])
-    setStats(s); setInvitations(inv); setFamilies(fam); setUsers(u); setEvents(evt)
+    setStats(s); setInvitations(inv); setFamilies(fam); setUsers(u); setEvents(evt); setPhaseVisibility(pv)
     setLoading(false)
   }
 
@@ -56,7 +57,7 @@ export default function AdminDashboard({ tab = 'overview' }) {
           {tab === 'families' && <FamiliesTable families={families} onRefresh={load} />}
           {tab === 'invitations' && <InvitationsTable invitations={invitations} />}
           {tab === 'users' && <UsersTable users={users} onRefresh={load} />}
-          {tab === 'phases' && <PhasesTable users={users} onRefresh={load} />}
+          {tab === 'phases' && <PhasesTable users={users} onRefresh={load} phaseVisibility={phaseVisibility} />}
           {tab === 'template' && <TemplateEditor />}
         </>
       )}
@@ -388,7 +389,7 @@ function UsersTable({ users, onRefresh }) {
   )
 }
 
-function PhasesTable({ users, onRefresh }) {
+function PhasesTable({ users, onRefresh, phaseVisibility }) {
   const { showToast } = useToast()
   const brides = users.filter((u) => u.role === 'bride')
   const grooms = users.filter((u) => u.role === 'groom')
@@ -405,6 +406,18 @@ function PhasesTable({ users, onRefresh }) {
       onRefresh()
     } catch (err) {
       showToast(`Failed to update global setting: ${err.message}`, 'error')
+    }
+  }
+
+  const handleGlobalPhaseVisibilityToggle = async (phase) => {
+    const field = `phase_${phase}_visible`
+    const newValue = !phaseVisibility[field]
+    try {
+      await setGlobalPhaseVisibility({ [field]: newValue })
+      showToast(`Phase ${phase} is now ${newValue ? 'VISIBLE' : 'HIDDEN'} on Bride/Groom Dashboards`)
+      onRefresh()
+    } catch (err) {
+      showToast(`Failed to update visibility: ${err.message}`, 'error')
     }
   }
 
@@ -519,6 +532,36 @@ function PhasesTable({ users, onRefresh }) {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
             </label>
           )}
+        </div>
+        <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30 mt-3">
+          <div>
+            <p className="font-medium text-emerald-deep">Phase 1: Planning Visibility</p>
+            <p className="text-xs text-ink/60 mt-1">If hidden, brides/grooms will not see the Address Book and Planning sections.</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={phaseVisibility?.phase_1_visible !== false} onChange={() => handleGlobalPhaseVisibilityToggle(1)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
+          </label>
+        </div>
+        <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30 mt-3">
+          <div>
+            <p className="font-medium text-emerald-deep">Phase 2: Invitations Visibility</p>
+            <p className="text-xs text-ink/60 mt-1">If hidden, brides/grooms will not see the Send Invitations sections.</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={phaseVisibility?.phase_2_visible !== false} onChange={() => handleGlobalPhaseVisibilityToggle(2)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
+          </label>
+        </div>
+        <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30 mt-3">
+          <div>
+            <p className="font-medium text-emerald-deep">Phase 3: RSVPs Visibility</p>
+            <p className="text-xs text-ink/60 mt-1">If hidden, brides/grooms will not see the RSVP status on their dashboard.</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={phaseVisibility?.phase_3_visible !== false} onChange={() => handleGlobalPhaseVisibilityToggle(3)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
+          </label>
         </div>
       </Card>
       

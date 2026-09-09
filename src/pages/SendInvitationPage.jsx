@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
   getFamiliesWithInviteesForUser, getEvents, createInvitation,
-  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage
+  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, createMassFakeInvitations, getUserStats
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 
@@ -30,20 +30,23 @@ export default function SendInvitationPage() {
   const [families, setFamilies] = useState([])
   const [events, setEvents] = useState([])
   const [invitations, setInvitations] = useState([])
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
 
   const loadAll = async () => {
     setLoading(true)
-    const [fam, evt, inv] = await Promise.all([
+    const [fam, evt, inv, s] = await Promise.all([
       getFamiliesWithInviteesForUser(user.id),
       getEvents(),
       getInvitationsByUser(user.id),
+      getUserStats(user.id),
     ])
     setFamilies(fam)
     setEvents(evt)
     setInvitations(inv)
+    setStats(s)
     setLoading(false)
   }
 
@@ -69,6 +72,18 @@ export default function SendInvitationPage() {
     await updateInvitationStatus(invitation.id, 'Sent')
     showToast(`Marked ${invitation.surname} family's invitation as sent.`)
     loadAll()
+  }
+
+  const handleGenerateInvitationsTest = async () => {
+    setLoading(true)
+    try {
+      await createMassFakeInvitations(user.id)
+      showToast('Successfully mass generated invitations for all uninvited families!', 'success')
+      await loadAll()
+    } catch (e) {
+      showToast('Error generating invitations: ' + e.message, 'error')
+      setLoading(false)
+    }
   }
 
   const handleMarkRsvpSent = async (invitation) => {
@@ -99,17 +114,22 @@ export default function SendInvitationPage() {
             message will still name every invited member of that family.
           </p>
         </div>
-        <Button onClick={() => {
-          if (user.can_send_invitations === false) {
-            setLockedModal({
-              open: true,
-              title: 'Action Locked',
-              message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
-            })
-            return
-          }
-          setWizardOpen(true)
-        }} size="lg">+ New Invitation</Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" className="border border-emerald/20 text-emerald-deep" onClick={handleGenerateInvitationsTest} disabled={loading}>
+            + Mass Invite All Fakes
+          </Button>
+          <Button onClick={() => {
+            if (user.can_send_invitations === false) {
+              setLockedModal({
+                open: true,
+                title: 'Action Locked',
+                message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
+              })
+              return
+            }
+            setWizardOpen(true)
+          }} size="lg">+ New Invitation</Button>
+        </div>
       </div>
 
       {loading ? (
@@ -229,10 +249,9 @@ export default function SendInvitationPage() {
         userName={user.display_name}
         partnerName={user.partner_name}
         userRole={user.role}
-        onCreated={() => {
-          setWizardOpen(false)
-          loadAll()
-        }}
+        user={user}
+        stats={stats}
+        onCreated={loadAll}
       />
 
       <Modal 
@@ -255,7 +274,7 @@ export default function SendInvitationPage() {
   )
 }
 
-function InvitationWizard({ open, onClose, families, events, invitations, userId, userName, partnerName, userRole, onCreated }) {
+function InvitationWizard({ open, onClose, families, events, invitations, userId, userName, partnerName, userRole, user, stats, onCreated }) {
   const { showToast } = useToast()
   const [step, setStep] = useState(0)
   const [familyId, setFamilyId] = useState('')
@@ -460,8 +479,25 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
               </tbody>
             </table>
           </div>
-          {activeMembers.length > 0 && !representativeId && (
-            <p className="text-xs text-wine font-medium mt-3">Select one representative to receive the WhatsApp message.</p>
+          <div className="mt-3 flex items-center justify-between">
+            {activeMembers.length > 0 && !representativeId ? (
+              <p className="text-sm font-semibold text-rose-600">Select one representative to receive the WhatsApp message.</p>
+            ) : <div/>}
+            <div className={`text-sm font-semibold px-3 py-1.5 rounded-md ${
+              selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0) > (280 + ((stats?.extra_thaals || 0) * 8)) 
+              ? 'text-rose-700 bg-rose-100' 
+              : 'text-emerald-deep bg-emerald-soft'
+            }`}>
+              {selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0)} / {280 + ((stats?.extra_thaals || 0) * 8)}
+            </div>
+          </div>
+          {selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0) > (280 + ((stats?.extra_thaals || 0) * 8)) && (
+            <div className="mt-4 bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg text-sm flex items-start gap-2">
+              <span className="text-rose-500 font-bold">⚠</span>
+              <div>
+                <strong>Quota Exceeded:</strong> You have exceeded the {280 + ((stats?.extra_thaals || 0) * 8)} person limit. Adding extra invitees will charge ₹1,800 per thaal.
+              </div>
+            </div>
           )}
         </div>
       )}

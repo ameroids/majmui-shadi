@@ -69,7 +69,7 @@ function formatDate(dateStr) {
 }
 
 export function buildWhatsappLink(mobile, message) {
-  const digits = mobile.replace(/\D/g, '')
+  const digits = (mobile || '').replace(/\D/g, '')
   const withCountryCode = digits.length === 10 ? `91${digits}` : digits
   return `https://wa.me/${withCountryCode}?text=${encodeURIComponent(message)}`
 }

@@ -11,7 +11,8 @@ const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
   { path: '/tnc/reports', label: 'Event Reports', icon: '📊' },
   { path: '/tnc/individual', label: 'Individual Reports', icon: '👤' },
-  { path: '/tnc/rsvp', label: 'RSVP Reports', icon: '✉️' }
+  { path: '/tnc/rsvp', label: 'RSVP Reports', icon: '✉️' },
+  { path: '/tnc/thaals', label: 'Extra Thaals', icon: '🍲' }
 ]
 
 export default function TNCIndividualReportsPage() {
@@ -71,11 +72,11 @@ export default function TNCIndividualReportsPage() {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_member_events?.some(e => e.event_id === filterEventId))
   }
   if (filterStatus === 'Sent') {
-    displayInvitees = displayInvitees.filter(inv => ['Sent', 'RSVP Sent', 'RSVPed'].includes(inv.invitation_status))
-  } else if (filterStatus === 'Pending') {
-    displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'WhatsApp Opened')
+    displayInvitees = displayInvitees.filter(inv => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(inv.invitation_status))
+  } else if (filterStatus === 'Ready') {
+    displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Ready')
   } else if (filterStatus === 'Added') {
-    displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Draft' || inv.invitation_status === 'Ready')
+    displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Draft' || inv.invitation_status === 'Not Invited')
   }
 
   return (
@@ -116,7 +117,7 @@ export default function TNCIndividualReportsPage() {
                   >
                     <span className="font-medium truncate mr-2">
                       {filterStatus === 'Sent' ? '📬 Sent' : 
-                       filterStatus === 'Pending' ? '⏳ Pending' : 
+                       filterStatus === 'Ready' ? '⏳ Ready' : 
                        '📝 Added'}
                     </span>
                     <svg className={`w-4 h-4 text-ink/60 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,7 +129,7 @@ export default function TNCIndividualReportsPage() {
                     <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-xl shadow-xl border border-ivory-line z-50 max-h-64 overflow-y-auto animate-fade-in">
                       {[
                         { value: 'Sent', label: '📬 Sent' },
-                        { value: 'Pending', label: '⏳ Pending' },
+                        { value: 'Ready', label: '⏳ Ready' },
                         { value: 'Added', label: '📝 Added' }
                       ].map(opt => (
                         <div 
