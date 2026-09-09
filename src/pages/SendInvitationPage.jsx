@@ -414,18 +414,19 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
               >
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    <span className="font-semibold text-emerald-deep">{f.surname}</span>
-                    {f.members.find(m => m.mobile?.trim()) && (
-                      <span className="text-xs text-ink/60 mt-0.5">
-                        WhatsApp: {f.members.find(m => m.mobile?.trim()).full_name}
-                      </span>
-                    )}
+                    <span className="font-semibold text-emerald-deep">
+                      {f.surname}
+                      {f.members.find(m => m.mobile?.trim()) && (
+                        <span className="text-sm font-normal text-ink/70 ml-1.5">
+                          ({f.members.find(m => m.mobile?.trim()).full_name})
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {hasInvitation && <Badge tone="default">Created</Badge>}
                     <span className="text-xs text-ink/45">{f.members.length} member{f.members.length !== 1 ? 's' : ''}</span>
                   </div>
-                </div>
                 </div>
               </button>
             )})}

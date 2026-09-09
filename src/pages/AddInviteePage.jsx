@@ -350,6 +350,22 @@ export default function AddInviteePage() {
                 </div>
               )
             })}
+            <div className="pt-3 mt-3 border-t border-ivory-line/60 flex flex-col sm:flex-row items-center justify-between bg-ivory-soft/30 p-4 rounded-lg">
+              <span className="text-sm text-ink/70 mb-2 sm:mb-0">Can't find the person you're looking for?</span>
+              <Button size="sm" onClick={() => {
+                if (user.can_add_invitees === false) {
+                  setLockedModal({
+                    open: true,
+                    title: 'Action Locked',
+                    message: 'You cannot add new invitees. Kindly contact your TNC admin for assistance.'
+                  })
+                  return
+                }
+                setShowManualForm(true)
+              }}>
+                Add Custom Invitee
+              </Button>
+            </div>
           </div>
         )}
 

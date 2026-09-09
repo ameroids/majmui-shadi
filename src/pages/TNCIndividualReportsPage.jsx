@@ -5,6 +5,8 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { Select } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
+import Button from '../components/ui/Button'
+import Modal from '../components/ui/Modal'
 import { getBridesAndGrooms, getUserInviteesWithEvents, getEvents } from '../lib/db'
 
 const TNC_NAV = [
@@ -29,6 +31,7 @@ export default function TNCIndividualReportsPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const [viewFamilyModal, setViewFamilyModal] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -78,6 +81,20 @@ export default function TNCIndividualReportsPage() {
   } else if (filterStatus === 'Added') {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Draft' || inv.invitation_status === 'Not Invited')
   }
+
+  const familiesMap = new Map()
+  displayInvitees.forEach(inv => {
+    if (!familiesMap.has(inv.family_id)) {
+      familiesMap.set(inv.family_id, {
+        id: inv.family_id,
+        surname: inv.surname,
+        hof_its: inv.hof_its,
+        members: []
+      })
+    }
+    familiesMap.get(inv.family_id).members.push(inv)
+  })
+  const displayFamilies = Array.from(familiesMap.values()).sort((a, b) => a.surname.localeCompare(b.surname))
 
   return (
     <DashboardLayout navItems={TNC_NAV} activePath="/tnc/individual" roleLabel="TNC">
@@ -278,7 +295,7 @@ export default function TNCIndividualReportsPage() {
               </div>
 
               <div className="flex items-center bg-emerald-deep/5 px-5 py-2.5 rounded-xl border border-emerald-deep/10 shadow-sm">
-                 <span className="text-2xl font-bold text-emerald-deep leading-none">{displayInvitees.length}</span>
+                 <span className="text-2xl font-bold text-emerald-deep leading-none">{displayFamilies.length}</span>
                  <span className="text-xs font-bold text-emerald-deep/70 uppercase tracking-widest ml-2.5 pt-0.5">Total</span>
               </div>
             </div>
@@ -299,7 +316,7 @@ export default function TNCIndividualReportsPage() {
                <Spinner className="h-6 w-6 text-emerald" />
                <span className="text-sm font-medium">Loading roster...</span>
              </div>
-          ) : displayInvitees.length === 0 ? (
+          ) : displayFamilies.length === 0 ? (
             <Card className="p-8 sm:p-12 border-dashed shadow-none bg-ivory-soft/50 text-center">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-2xl">
                 📭
@@ -313,42 +330,31 @@ export default function TNCIndividualReportsPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {displayInvitees.map((inv, idx) => {
-                const isSent = inv.invitation_status === 'Sent' || inv.invitation_status === 'WhatsApp Opened';
-                const isReady = inv.invitation_status === 'Ready';
+              {displayFamilies.map((fam, idx) => {
+                const status = fam.members[0]?.invitation_status || 'Unknown'
+                const isSentStatus = status === 'Sent' || status === 'WhatsApp Opened' || status === 'RSVP Sent' || status === 'RSVPed'
+                const isReadyStatus = status === 'Ready'
                 
                 return (
                   <div 
-                    key={inv.id} 
-                    className="group bg-white rounded-2xl p-5 border border-ivory-line shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-slide-up"
+                    key={fam.id} 
+                    className="group bg-white rounded-2xl p-5 border border-ivory-line shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-slide-up flex flex-col justify-between"
                     style={{ animationDelay: `${0.1 + (idx % 10) * 0.05}s`, animationFillMode: 'both' }}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="font-semibold text-lg text-ink leading-tight">{inv.full_name}</h3>
-                        <p className="text-xs text-ink/50 mt-0.5">{inv.surname} Family</p>
+                        <h3 className="font-semibold text-lg text-ink leading-tight">{fam.surname} Family</h3>
+                        <p className="text-xs text-ink/50 mt-0.5">{fam.members.length} member{fam.members.length !== 1 ? 's' : ''}</p>
                       </div>
-                      <Badge tone={isSent ? 'Sent' : isReady ? 'Ready' : 'Draft'} className="shrink-0 shadow-sm">
-                        {inv.invitation_status}
+                      <Badge tone={isSentStatus ? 'Sent' : isReadyStatus ? 'Ready' : 'Draft'} className="shrink-0 shadow-sm">
+                        {status}
                       </Badge>
                     </div>
                     
-                    <div className="pt-4 border-t border-ivory-line/60">
-                      <div className="text-[10px] uppercase tracking-widest text-ink/40 mb-2 font-medium">Invited To</div>
-                      <div className="flex flex-wrap gap-2">
-                        {inv.invitation_member_events && inv.invitation_member_events.length > 0 ? (
-                          inv.invitation_member_events.map(e => {
-                            const evt = events.find(ev => ev.id === e.event_id)
-                            return evt ? (
-                              <span key={e.event_id} className="text-xs px-2.5 py-1 rounded-md bg-ivory-soft text-ink/70 font-medium border border-ivory-line group-hover:border-emerald/20 group-hover:bg-emerald/5 transition-colors">
-                                {evt.event_name}
-                              </span>
-                            ) : null
-                          })
-                        ) : (
-                          <span className="text-xs italic text-ink/40">Pending events...</span>
-                        )}
-                      </div>
+                    <div className="pt-4 border-t border-ivory-line/60 flex justify-end">
+                      <Button variant="outline" size="sm" onClick={() => setViewFamilyModal(fam)}>
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 )
@@ -356,6 +362,45 @@ export default function TNCIndividualReportsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {viewFamilyModal && (
+        <Modal open={!!viewFamilyModal} onClose={() => setViewFamilyModal(null)} title={`${viewFamilyModal.surname} Family Details`}>
+          <div className="space-y-4">
+            <div className="text-sm text-ink/60 mb-2 font-mono">HOF ITS: {viewFamilyModal.hof_its}</div>
+            <div className="border border-ivory-line rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-ivory-soft border-b border-ivory-line">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-semibold text-ink/70">Member Name</th>
+                    <th className="py-3 px-4 text-left font-semibold text-ink/70">Contact</th>
+                    <th className="py-3 px-4 text-left font-semibold text-ink/70">Invited Events</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ivory-line">
+                  {viewFamilyModal.members.map(m => (
+                    <tr key={m.id} className="hover:bg-ivory-soft/30 transition">
+                      <td className="py-3 px-4 font-medium text-ink">{m.full_name}</td>
+                      <td className="py-3 px-4 text-ink/70 font-mono text-xs">{m.mobile || '-'}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1.5">
+                          {m.invitation_member_events?.map(e => {
+                            const evt = events.find(ev => ev.id === e.event_id)
+                            return evt ? (
+                              <span key={e.event_id} className="text-[10px] px-2 py-0.5 bg-emerald/10 text-emerald-deep rounded font-medium border border-emerald/20">
+                                {evt.event_name}
+                              </span>
+                            ) : null
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Modal>
       )}
     </DashboardLayout>
   )
