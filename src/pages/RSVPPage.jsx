@@ -18,6 +18,7 @@ export default function RSVPPage() {
   
   // State to track responses: { [inviteeId]: 'Attending' | 'Not Attending' }
   const [responses, setResponses] = useState({})
+  const [lockedResponses, setLockedResponses] = useState({})
 
   useEffect(() => {
     async function loadData() {
@@ -36,12 +37,17 @@ export default function RSVPPage() {
           
           // Initialize responses state based on current rsvp_status
           const initialResponses = {}
+          const initialLocked = {}
           inviteesData.forEach(inv => {
             inv.events.forEach(ev => {
               initialResponses[ev.junction_id] = ev.rsvp_status
+              if (ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending') {
+                initialLocked[ev.junction_id] = true
+              }
             })
           })
           setResponses(initialResponses)
+          setLockedResponses(initialLocked)
         }
       } catch (err) {
         setError('Failed to load invitation.')
@@ -68,7 +74,7 @@ export default function RSVPPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    const hasPending = Object.values(responses).some(status => status === 'Pending')
+    const hasPending = Object.entries(responses).some(([jid, status]) => !lockedResponses[jid] && status === 'Pending')
     if (hasPending) {
       setFormError("Please select 'Attending' or 'Not Attending' for all events before submitting.")
       return
@@ -77,10 +83,18 @@ export default function RSVPPage() {
     setSubmitting(true)
     setFormError(null)
     
-    const rsvpData = Object.entries(responses).map(([junctionId, status]) => ({
-      junctionId,
-      status
-    }))
+    const rsvpData = Object.entries(responses)
+      .filter(([junctionId]) => !lockedResponses[junctionId])
+      .map(([junctionId, status]) => ({
+        junctionId,
+        status
+      }))
+      
+    if (rsvpData.length === 0) {
+      setSuccess(true)
+      setSubmitting(false)
+      return
+    }
     
     const { success, error: submitErr } = await submitRsvp(id, rsvpData)
     
@@ -167,15 +181,16 @@ export default function RSVPPage() {
                       <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <span className="text-gray-700 font-medium">{ev.event_name}</span>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {!globalRsvpOpen ? (
-                          <span className={`px-4 py-1.5 text-sm font-medium rounded-md text-center ${
+                        {!globalRsvpOpen || lockedResponses[ev.junction_id] ? (
+                          <span className={`px-4 py-1.5 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 ${
                             responses[ev.junction_id] === 'Attending' 
                               ? 'bg-emerald/10 text-emerald-deep' 
                               : responses[ev.junction_id] === 'Not Attending'
                                 ? 'bg-wine/10 text-wine'
                                 : 'bg-ivory-soft text-ink/60'
                           }`}>
-                            {responses[ev.junction_id]}
+                            {lockedResponses[ev.junction_id] && <CheckCircle2 className="w-4 h-4" />}
+                            {lockedResponses[ev.junction_id] ? `Already Responded: ${responses[ev.junction_id]}` : responses[ev.junction_id]}
                           </span>
                         ) : (
                           <>
@@ -216,6 +231,14 @@ export default function RSVPPage() {
                 <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
                   <p className="text-rose-700 font-medium">RSVPs are now closed.</p>
                   <p className="text-sm text-rose-600/80 mt-1">Thank you for your overwhelming response.</p>
+                </div>
+              ) : Object.keys(responses).length > 0 && Object.keys(responses).every(jid => lockedResponses[jid]) ? (
+                <div className="mb-4 p-4 rounded-xl bg-emerald-soft/30 border border-emerald-soft text-center">
+                  <p className="text-emerald-deep font-medium flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    All responses submitted successfully
+                  </p>
+                  <p className="text-sm text-ink/60 mt-1">You have already responded for all invited members.</p>
                 </div>
               ) : (
                 <>

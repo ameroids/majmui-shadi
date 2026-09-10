@@ -997,6 +997,34 @@ export async function getPublicInvitationDetails(invitationId) {
     })
   }
 
+  // --- NEW: Global Sync Check ---
+  // If this person already responded on ANOTHER invitation link, we want to reflect it here
+  const inviteeIds = Array.from(uniqueInviteesMap.keys())
+  if (inviteeIds.length > 0) {
+    const { data: globalResponses } = await supabase
+      .from('invitation_member_events')
+      .select('invitee_id, event_id, rsvp_status')
+      .in('invitee_id', inviteeIds)
+      .neq('rsvp_status', 'Pending')
+
+    if (globalResponses && globalResponses.length > 0) {
+      const globalStatusMap = {}
+      globalResponses.forEach(r => {
+        globalStatusMap[`${r.invitee_id}_${r.event_id}`] = r.rsvp_status
+      })
+
+      // Update the local map with the global status if it exists
+      uniqueInviteesMap.forEach(invitee => {
+        invitee.events.forEach(ev => {
+          const globalStatus = globalStatusMap[`${invitee.id}_${ev.event_id}`]
+          if (globalStatus && ev.rsvp_status === 'Pending') {
+            ev.rsvp_status = globalStatus
+          }
+        })
+      })
+    }
+  }
+
   return {
     invitation: {
       id: inv.id,
@@ -1011,24 +1039,32 @@ export async function getPublicInvitationDetails(invitationId) {
 export async function submitRsvp(invitationId, rsvpData) {
   // rsvpData is an array of objects: { junctionId: "inviteeId_eventId", status: 'Attending' | 'Not Attending' }
   try {
+    const updatedInvitationIds = new Set([invitationId])
+
     for (const rsvp of rsvpData) {
       if (!rsvp.junctionId) continue;
       const [inviteeId, eventId] = rsvp.junctionId.split('_')
       if (!inviteeId || !eventId) continue;
       
-      await supabase
+      const { data } = await supabase
         .from('invitation_member_events')
         .update({ rsvp_status: rsvp.status })
-        .eq('invitation_id', invitationId)
         .eq('invitee_id', inviteeId)
         .eq('event_id', eventId)
+        .select('invitation_id')
+        
+      if (data) {
+        data.forEach(row => updatedInvitationIds.add(row.invitation_id))
+      }
     }
     
-    // Also update invitation status to RSVPed so we know they responded
-    await supabase
-      .from('invitations')
-      .update({ status: 'RSVPed' })
-      .eq('id', invitationId)
+    // Update all affected invitations status to RSVPed so they know they responded
+    if (updatedInvitationIds.size > 0) {
+      await supabase
+        .from('invitations')
+        .update({ status: 'RSVPed' })
+        .in('id', Array.from(updatedInvitationIds))
+    }
       
     return { success: true }
   } catch (error) {
