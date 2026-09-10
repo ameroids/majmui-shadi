@@ -74,9 +74,17 @@ export default function RSVPPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    const hasPending = Object.entries(responses).some(([jid, status]) => !lockedResponses[jid] && status === 'Pending')
-    if (hasPending) {
-      setFormError("Please select 'Attending' or 'Not Attending' for all events before submitting.")
+    const missingInvitees = []
+    invitees.forEach(inv => {
+      const hasMissingEvent = inv.events.some(ev => !lockedResponses[ev.junction_id] && responses[ev.junction_id] === 'Pending')
+      if (hasMissingEvent) {
+        missingInvitees.push(inv.full_name)
+      }
+    })
+
+    if (missingInvitees.length > 0) {
+      const names = missingInvitees.join(', ')
+      setFormError(`Please select 'Attending' or 'Not Attending' for ${names} before submitting.`)
       return
     }
 
