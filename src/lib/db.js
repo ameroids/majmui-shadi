@@ -672,7 +672,7 @@ export async function getAdminStats() {
   if (validInvIds.length > 0) {
     const { data } = await supabase
       .from('invitation_member_events')
-      .select('invitee_id, rsvp_status')
+      .select('invitee_id, rsvp_status, invitees(member_id)')
       .in('invitation_id', validInvIds)
     if (data) allRsvps = data
   }
@@ -680,10 +680,11 @@ export async function getAdminStats() {
   const personRsvps = new Map()
   if (allRsvps) {
     allRsvps.forEach(r => {
-      if (!personRsvps.has(r.invitee_id)) {
-        personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+      const personKey = r.invitees?.member_id || r.invitee_id
+      if (!personRsvps.has(personKey)) {
+        personRsvps.set(personKey, { attending: 0, pending: 0, notAttending: 0 })
       }
-      const s = personRsvps.get(r.invitee_id)
+      const s = personRsvps.get(personKey)
       if (r.rsvp_status === 'Attending') s.attending++
       else if (r.rsvp_status === 'Not Attending') s.notAttending++
       else s.pending++
