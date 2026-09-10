@@ -961,6 +961,7 @@ export async function getPublicInvitationDetails(invitationId) {
         events (id, event_name),
         invitees (
           id,
+          member_id,
           full_name
         )
       )
@@ -982,6 +983,7 @@ export async function getPublicInvitationDetails(invitationId) {
         if (!uniqueInviteesMap.has(im.invitees.id)) {
           uniqueInviteesMap.set(im.invitees.id, {
             id: im.invitees.id,
+            member_id: im.invitees.member_id,
             full_name: im.invitees.full_name,
             events: []
           })
@@ -999,24 +1001,25 @@ export async function getPublicInvitationDetails(invitationId) {
 
   // --- NEW: Global Sync Check ---
   // If this person already responded on ANOTHER invitation link, we want to reflect it here
-  const inviteeIds = Array.from(uniqueInviteesMap.keys())
-  if (inviteeIds.length > 0) {
+  const memberIds = Array.from(uniqueInviteesMap.values()).map(inv => inv.member_id).filter(Boolean)
+  if (memberIds.length > 0) {
     const { data: globalResponses } = await supabase
       .from('invitation_member_events')
-      .select('invitee_id, event_id, rsvp_status')
-      .in('invitee_id', inviteeIds)
+      .select('event_id, rsvp_status, invitees!inner(member_id)')
+      .in('invitees.member_id', memberIds)
       .neq('rsvp_status', 'Pending')
 
     if (globalResponses && globalResponses.length > 0) {
       const globalStatusMap = {}
       globalResponses.forEach(r => {
-        globalStatusMap[`${r.invitee_id}_${r.event_id}`] = r.rsvp_status
+        globalStatusMap[`${r.invitees.member_id}_${r.event_id}`] = r.rsvp_status
       })
 
       // Update the local map with the global status if it exists
       uniqueInviteesMap.forEach(invitee => {
+        if (!invitee.member_id) return
         invitee.events.forEach(ev => {
-          const globalStatus = globalStatusMap[`${invitee.id}_${ev.event_id}`]
+          const globalStatus = globalStatusMap[`${invitee.member_id}_${ev.event_id}`]
           if (globalStatus && ev.rsvp_status === 'Pending') {
             ev.rsvp_status = globalStatus
           }
@@ -1046,10 +1049,30 @@ export async function submitRsvp(invitationId, rsvpData) {
       const [inviteeId, eventId] = rsvp.junctionId.split('_')
       if (!inviteeId || !eventId) continue;
       
+      // Look up the member_id for this invitee
+      const { data: invitee } = await supabase
+        .from('invitees')
+        .select('member_id')
+        .eq('id', inviteeId)
+        .single()
+        
+      if (!invitee || !invitee.member_id) continue;
+      
+      // Look up all invitees that share this member_id
+      const { data: siblingInvitees } = await supabase
+        .from('invitees')
+        .select('id')
+        .eq('member_id', invitee.member_id)
+        
+      if (!siblingInvitees) continue;
+      
+      const siblingIds = siblingInvitees.map(s => s.id)
+      
+      // Update across all sibling invitees
       const { data } = await supabase
         .from('invitation_member_events')
         .update({ rsvp_status: rsvp.status })
-        .eq('invitee_id', inviteeId)
+        .in('invitee_id', siblingIds)
         .eq('event_id', eventId)
         .select('invitation_id')
         
