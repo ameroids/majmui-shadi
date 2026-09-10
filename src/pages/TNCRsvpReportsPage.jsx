@@ -33,13 +33,33 @@ export default function TNCRsvpReportsPage() {
       
       const byPerson = {}
       rsvpData.forEach(r => {
-        if (!byPerson[r.invitee_id]) {
-          byPerson[r.invitee_id] = { ...r, events: [] }
+        // Group by member_id to merge duplicates from different hosts
+        const personKey = r.member_id || r.invitee_id
+        if (!byPerson[personKey]) {
+          byPerson[personKey] = { ...r, events: [], invited_by: new Set() }
         }
-        byPerson[r.invitee_id].events.push({ name: r.event_name, status: r.rsvp_status })
+        
+        // Merge invited_by names
+        if (r.invited_by) {
+          byPerson[personKey].invited_by.add(r.invited_by)
+        }
+
+        // Only add the event if we haven't added it yet (or we can just prefer 'Attending' over 'Pending' if there are duplicates)
+        const existingEvent = byPerson[personKey].events.find(e => e.name === r.event_name)
+        if (existingEvent) {
+          if (r.rsvp_status === 'Attending') existingEvent.status = 'Attending'
+          else if (r.rsvp_status === 'Not Attending' && existingEvent.status === 'Pending') existingEvent.status = 'Not Attending'
+        } else {
+          byPerson[personKey].events.push({ name: r.event_name, status: r.rsvp_status })
+        }
       })
       
-      setInvitees(Object.values(byPerson))
+      const mergedInvitees = Object.values(byPerson).map(person => ({
+        ...person,
+        invited_by: Array.from(person.invited_by).join(', ')
+      }))
+      
+      setInvitees(mergedInvitees)
       setLoading(false)
     }
     load()

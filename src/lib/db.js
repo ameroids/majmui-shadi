@@ -293,6 +293,14 @@ export async function saveInvitees(userId, family, selectedMembers) {
     .upsert(inviteeRows, { onConflict: 'bride_groom_user_id, member_id' })
 
   if (error) throw error
+
+  // Also update the global family_members table with the new mobile numbers if they exist
+  for (const member of selectedMembers) {
+    if (member.mobile && member.mobile.trim() !== '') {
+      await supabase.from('family_members').update({ mobile: member.mobile.trim() }).eq('id', member.id)
+    }
+  }
+
   return getInviteesByUser(userId)
 }
 
@@ -729,6 +737,7 @@ export async function getTncRsvpData() {
       events (event_name),
       invitees (
         id,
+        member_id,
         full_name,
         surname,
         mobile,
@@ -746,6 +755,7 @@ export async function getTncRsvpData() {
     rsvp_status: row.rsvp_status || 'Pending',
     event_name: row.events?.event_name,
     invitee_id: row.invitees?.id,
+    member_id: row.invitees?.member_id,
     full_name: row.invitees?.full_name,
     surname: row.invitees?.surname,
     mobile: row.invitees?.mobile,
