@@ -460,7 +460,9 @@ function PhasesTable({ users, onRefresh, phaseVisibility }) {
       isDanger: !newValue,
       action: async () => {
         try {
-          await Promise.all(usersList.map(u => updateUserPermissions(u.id, { [field]: newValue })))
+          for (const u of usersList) {
+            await updateUserPermissions(u.id, { [field]: newValue })
+          }
           showToast(`Successfully updated ${featureName} for all ${roleLabel}s`)
           onRefresh()
         } catch (err) {
