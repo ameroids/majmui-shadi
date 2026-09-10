@@ -53,6 +53,11 @@ export default function SendInvitationPage() {
   useEffect(() => { loadAll() }, []) // eslint-disable-line
 
   const handleOpenWhatsapp = async (invitation) => {
+    if (!invitation.recipient_mobile) {
+      showToast('This family does not have a mobile number saved! Please edit the family to add a mobile number first.', 'error')
+      return
+    }
+
     if (window.Android && window.Android.shareToWhatsApp) {
       // Use Android native bridge (which can attach images)
       window.Android.shareToWhatsApp(invitation.recipient_mobile, invitation.generated_message)
@@ -93,6 +98,11 @@ export default function SendInvitationPage() {
   }
 
   const handleSendRsvp = async (invitation) => {
+    if (!invitation.recipient_mobile) {
+      showToast('This family does not have a mobile number saved! Please edit the family to add a mobile number first.', 'error')
+      return
+    }
+
     const rsvpUrl = `${window.location.origin}/rsvp/${invitation.id}`
     const message = generateRsvpMessage(invitation.recipient_name, rsvpUrl)
     
