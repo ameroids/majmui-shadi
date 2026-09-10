@@ -761,15 +761,6 @@ export async function resetUserData(userId) {
   
   const { error: reqErr } = await supabase.from('invitees').delete().eq('bride_groom_user_id', userId)
   if (reqErr) throw reqErr
-  
-  // Reset feature locks
-  const { error: userErr } = await supabase.from('users').update({
-    can_add_invitees: true,
-    can_send_invitations: true,
-    can_send_rsvps: false
-  }).eq('id', userId)
-  
-  if (userErr) throw userErr
 }
 
 export async function resetUserPhaseData(userId, phase) {
