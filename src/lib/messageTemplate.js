@@ -3,17 +3,17 @@
 
 export const DEFAULT_TEMPLATE = `Dear {{recipient_name}},
 
-You are warmly invited to the following wedding events:
+You are warmly invited to the wedding events of {{groom_first_name}} and {{bride_first_name}}:
 
 {{events_with_members}}
 
 We look forward to celebrating these special occasions with you.
 
 With warm regards,
-{{groom_first_name}} & {{bride_first_name}} (from {{sender_family}})
+{{sender_family}}
 Majmui Shaadi`
 
-const TEMPLATE_KEY = 'majmui_shaadi_template_v5'
+const TEMPLATE_KEY = 'majmui_shaadi_template_v6'
 
 export function getTemplate() {
   return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE
