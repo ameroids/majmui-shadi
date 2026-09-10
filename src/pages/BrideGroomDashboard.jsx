@@ -28,6 +28,7 @@ export default function BrideGroomDashboard() {
   })
   const [loading, setLoading] = useState(true)
 
+
   useEffect(() => {
     let alive = true
     async function load() {
@@ -71,12 +72,17 @@ export default function BrideGroomDashboard() {
             {/* Phase 1: Planning */}
             {phaseVisibility.phase_1_visible && (
               <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display text-2xl font-semibold text-emerald-deep">Phase 1: Planning</h2>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/add-invitee')}>
-                  Go to Address Book →
-                </Button>
-              </div>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h2 className="font-display text-2xl font-semibold text-emerald-deep">Phase 1: Guest List</h2>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => window.open('/dashboard/print-roster', '_blank')} className="hidden sm:inline-flex border-emerald/20 text-emerald-deep hover:bg-emerald-soft">
+                      🖨️ Download PDF / Print
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/add-invitee')}>
+                      Manage Roster →
+                    </Button>
+                  </div>
+                </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <StatCard label="Total People Added" value={stats.totalInvitees} />
               </div>

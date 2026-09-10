@@ -13,6 +13,7 @@ import TNCIndividualReportsPage from './pages/TNCIndividualReportsPage'
 import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
 import TNCExtraThaalsPage from './pages/TNCExtraThaalsPage'
 import RSVPPage from './pages/RSVPPage'
+import PrintRosterPage from './pages/PrintRosterPage'
 
 export default function App() {
   return (
@@ -31,6 +32,9 @@ export default function App() {
             } />
             <Route path="/dashboard/send-invitation" element={
               <ProtectedRoute roles={['bride', 'groom']}><SendInvitationPage /></ProtectedRoute>
+            } />
+            <Route path="/dashboard/print-roster" element={
+              <ProtectedRoute roles={['bride', 'groom']}><PrintRosterPage /></ProtectedRoute>
             } />
 
             <Route path="/admin" element={
