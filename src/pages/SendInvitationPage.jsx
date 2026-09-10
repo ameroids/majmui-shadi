@@ -390,6 +390,7 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
       await updateInvitationStatus(record.id, 'WhatsApp Opened')
       showToast(`Invitation ready for the ${family.surname} family — WhatsApp opened.`)
       onCreated()
+      onClose()
     } catch (err) {
       console.error(err)
       showToast(`Error creating invitation: ${err.message || 'Network error'}`, 'error')
