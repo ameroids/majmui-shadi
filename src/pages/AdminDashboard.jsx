@@ -286,24 +286,16 @@ function UsersTable({ users, onRefresh }) {
   }
 
   const renderUserItem = (u) => (
-    <li key={u.id} className="py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-3 text-sm">
-      <div className="flex items-center shrink-0">
-        <span className="font-medium mr-2">{u.display_name}</span>
-        <span className="font-mono text-xs text-ink/45">{u.username}</span>
+    <li key={u.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3 text-sm">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-medium truncate max-w-[150px] xl:max-w-xs block" title={u.display_name}>{u.display_name}</span>
+        <span className="font-mono text-[10px] text-ink/45 bg-ivory-line/30 px-1.5 py-0.5 rounded shrink-0">{u.username}</span>
       </div>
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations.')}>
-          Reset P1 Data
-        </Button>
-        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 2, 'Phase 2 (Invitations)', 'This will delete generated invitations, but keep the invitee list intact.')}>
-          Reset P2 Data
-        </Button>
-        <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto flex items-center justify-center w-full sm:w-auto" onClick={() => handlePhaseReset(u, 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending".')}>
-          Reset P3 Data
-        </Button>
-        <Button variant="ghost" size="sm" className="text-rose-600 border border-rose-200/60 bg-rose-50 hover:bg-rose-100 whitespace-nowrap text-xs py-1 px-2 h-auto font-medium flex items-center justify-center w-full sm:w-auto" onClick={() => handleReset(u)}>
-          Reset All Data
-        </Button>
+      <div className="flex items-center shadow-sm rounded-md overflow-hidden border border-wine/20">
+        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations.')} title="Reset Phase 1 (Invitees)">P1</button>
+        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 2, 'Phase 2 (Invitations)', 'This will delete generated invitations, but keep the invitee list intact.')} title="Reset Phase 2 (Invitations)">P2</button>
+        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending".')} title="Reset Phase 3 (RSVPs)">P3</button>
+        <button className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-1.5 transition-colors" onClick={() => handleReset(u)} title="Reset All Data">ALL</button>
       </div>
     </li>
   )
@@ -479,12 +471,12 @@ function PhasesTable({ users, onRefresh, phaseVisibility }) {
   }
 
   const renderUserItem = (u) => (
-    <li key={u.id} className="py-3 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3 text-sm">
-      <div className="flex items-center shrink-0">
-        <span className="font-medium mr-2">{u.display_name}</span>
-        <span className="font-mono text-xs text-ink/45">{u.username}</span>
+    <li key={u.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3 text-sm">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-medium truncate max-w-[150px] xl:max-w-[200px] block" title={u.display_name}>{u.display_name}</span>
+        <span className="font-mono text-[10px] text-ink/45 bg-ivory-line/30 px-1.5 py-0.5 rounded shrink-0">{u.username}</span>
       </div>
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3 xl:gap-4">
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input 
             type="checkbox" 

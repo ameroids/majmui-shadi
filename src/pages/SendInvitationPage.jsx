@@ -348,6 +348,7 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
       memberEvents: parsedMemberEvents,
       brideName,
       groomName,
+      senderName: userName,
     })
     setMessage(msg)
     setStep(2)

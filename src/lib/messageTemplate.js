@@ -10,10 +10,10 @@ You are warmly invited to the following wedding events:
 We look forward to celebrating these special occasions with you.
 
 With warm regards,
-{{groom_name}} & {{bride_name}}
+{{groom_first_name}} & {{bride_first_name}} (from {{sender_family}})
 Majmui Shaadi`
 
-const TEMPLATE_KEY = 'majmui_shaadi_template_v4'
+const TEMPLATE_KEY = 'majmui_shaadi_template_v5'
 
 export function getTemplate() {
   return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE
@@ -23,7 +23,7 @@ export function setTemplate(template) {
   localStorage.setItem(TEMPLATE_KEY, template)
 }
 
-export function generateMessage({ recipientName, activeMembers, events, memberEvents, brideName, groomName }) {
+export function generateMessage({ recipientName, activeMembers, events, memberEvents, brideName, groomName, senderName }) {
   const template = getTemplate()
   
   const memberMap = Object.fromEntries(activeMembers.map(m => [m.id, m.full_name]))
@@ -41,11 +41,24 @@ export function generateMessage({ recipientName, activeMembers, events, memberEv
     return `${eventHeader}\n${membersList}`
   }).filter(Boolean).join('\n\n')
 
+  const safeGroomName = groomName || 'the Groom'
+  const safeBrideName = brideName || 'the Bride'
+  const safeSenderName = senderName || 'Our'
+
+  const groomFirstName = safeGroomName.split(' ').slice(0, -1).join(' ') || safeGroomName
+  const brideFirstName = safeBrideName.split(' ').slice(0, -1).join(' ') || safeBrideName
+  
+  const senderParts = safeSenderName.split(' ')
+  const senderFamily = senderParts.length > 1 ? senderParts[senderParts.length - 1] + ' Family' : safeSenderName + ' Family'
+
   return template
     .replaceAll('{{recipient_name}}', recipientName)
     .replaceAll('{{events_with_members}}', eventsBlock)
-    .replaceAll('{{bride_name}}', brideName || 'the Bride')
-    .replaceAll('{{groom_name}}', groomName || 'the Groom')
+    .replaceAll('{{bride_name}}', safeBrideName)
+    .replaceAll('{{groom_name}}', safeGroomName)
+    .replaceAll('{{bride_first_name}}', brideFirstName)
+    .replaceAll('{{groom_first_name}}', groomFirstName)
+    .replaceAll('{{sender_family}}', senderFamily)
 }
 
 export function generateRsvpMessage(recipientName, rsvpUrl) {
