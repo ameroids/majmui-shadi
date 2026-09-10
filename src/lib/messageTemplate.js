@@ -84,5 +84,11 @@ function formatDate(dateStr) {
 export function buildWhatsappLink(mobile, message) {
   const digits = (mobile || '').replace(/\D/g, '')
   const withCountryCode = digits.length === 10 ? `91${digits}` : digits
-  return `https://wa.me/${withCountryCode}?text=${encodeURIComponent(message)}`
+  
+  // If there's no mobile number, this will open the generic "Send to" dialog in WhatsApp
+  if (!withCountryCode) {
+    return `https://api.whatsapp.com/send/?text=${encodeURIComponent(message)}`
+  }
+  
+  return `https://api.whatsapp.com/send/?phone=${withCountryCode}&text=${encodeURIComponent(message)}`
 }
