@@ -101,7 +101,7 @@ export default function ConfirmationPage() {
       return
     }
     
-    const { success, error: submitErr } = await submitRsvp(id, rsvpData)
+    const { success, error: submitErr } = await submitRsvp(id, rsvpData, true)
     
     if (success) {
       setSuccess(true)

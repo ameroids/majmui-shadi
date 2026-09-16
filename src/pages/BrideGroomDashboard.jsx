@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -176,8 +176,30 @@ export default function BrideGroomDashboard() {
             </section>
             )}
 
+            {/* Phase 2: Confirmations */}
+            {phaseVisibility.phase_2_visible && (
+              <section className="mb-8">
+                <h2 className="font-display text-2xl font-semibold text-emerald-deep mb-4">Phase 2: Initial Confirmations</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <StatCard label="Confirmed" value={stats.confirmed || 0} />
+                  <StatCard label="Declined" value={stats.declined || 0} />
+                  <StatCard label="Pending" value={stats.pendingConfirmations || 0} />
+                </div>
+                {stats.declined > 0 && (
+                  <div className="mt-4 p-4 bg-emerald-soft/30 rounded-xl border border-emerald-soft flex items-center justify-between">
+                    <p className="text-emerald-deep font-medium">
+                      🎉 You have {stats.declined} declined seats! You can now invite more people to fill these seats.
+                    </p>
+                    <Link to="/dashboard/add-invitee">
+                      <Button size="sm">Invite More</Button>
+                    </Link>
+                  </div>
+                )}
+              </section>
+            )}
+
             {phaseVisibility.phase_2_visible && phaseVisibility.phase_3_visible && (
-              <div className="h-px bg-ivory-line w-full" />
+              <div className="h-px bg-ivory-line w-full mb-8" />
             )}
 
             {/* Phase 3: RSVPs */}

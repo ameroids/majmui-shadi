@@ -597,7 +597,7 @@ export async function getUserStats(userId) {
   // Calculate RSVPs from invitation_member_events
   const { data: userInvs } = await supabase.from('invitations').select('id, status').eq('bride_groom_user_id', userId)
   const validInvIds = userInvs ? userInvs.map(i => i.id) : []
-  const rsvpSentInvIds = userInvs ? userInvs.filter(i => i.status === 'RSVP Sent').map(i => i.id) : []
+  const trackedInvIds = userInvs ? userInvs.filter(i => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id) : []
 
   let rsvps = []
   if (validInvIds.length > 0) {
@@ -617,24 +617,41 @@ export async function getUserStats(userId) {
         seatsPerEvent[r.event_id] = (seatsPerEvent[r.event_id] || 0) + 1
       }
 
-      // ONLY track RSVPs for invitations that have RSVP Sent status
-      if (rsvpSentInvIds.includes(r.invitation_id)) {
+      // ONLY track stats for invitations that have been sent
+      if (trackedInvIds.includes(r.invitation_id)) {
         if (!personRsvps.has(r.invitee_id)) {
-          personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
+          personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0, confirmed: 0, declined: 0 })
         }
         const s = personRsvps.get(r.invitee_id)
-        if (r.rsvp_status === 'Attending' || r.rsvp_status === 'Confirmed') s.attending++
-        else if (r.rsvp_status === 'Not Attending' || r.rsvp_status === 'Declined') s.notAttending++
+        if (r.rsvp_status === 'Attending') s.attending++
+        else if (r.rsvp_status === 'Not Attending') s.notAttending++
+        else if (r.rsvp_status === 'Confirmed') s.confirmed++
+        else if (r.rsvp_status === 'Declined') s.declined++
         else s.pending++
       }
     })
   }
 
+  let confirmed = 0, declined = 0, pendingConfirmations = 0
   let attending = 0, notAttending = 0, pendingRsvps = 0
+  
   personRsvps.forEach(s => {
+    // Phase 3 Final RSVPs
     if (s.attending > 0) attending++
-    else if (s.pending > 0) pendingRsvps++
     else if (s.notAttending > 0) notAttending++
+    // Phase 2 Confirmations (they are pending Phase 3)
+    else if (s.confirmed > 0) {
+      confirmed++
+      pendingRsvps++
+    }
+    // Declined in Phase 2
+    else if (s.declined > 0) {
+      declined++
+    }
+    // Pending Phase 2 entirely
+    else if (s.pending > 0) {
+      pendingConfirmations++
+    }
   })
 
 
@@ -650,6 +667,9 @@ export async function getUserStats(userId) {
     attending,
     notAttending,
     pendingRsvps,
+    confirmed: confirmed + attending + notAttending, // If they reached phase 3, they were confirmed in phase 2
+    declined,
+    pendingConfirmations,
     totalSeatsConsumed: rsvps.filter(r => r.rsvp_status !== 'Not Attending' && r.rsvp_status !== 'Declined').length,
     seatsPerEvent,
     extra_thaals: userRec?.extra_thaals || 0
@@ -1043,7 +1063,7 @@ export async function getPublicInvitationDetails(invitationId) {
   }
 }
 
-export async function submitRsvp(invitationId, rsvpData) {
+export async function submitRsvp(invitationId, rsvpData, isConfirmation = false) {
   // rsvpData is an array of objects: { junctionId: "inviteeId_eventId", status: 'Attending' | 'Not Attending' }
   try {
     const updatedInvitationIds = new Set([invitationId])
@@ -1086,7 +1106,7 @@ export async function submitRsvp(invitationId, rsvpData) {
     }
     
     // Update all affected invitations status to RSVPed so they know they responded
-    if (updatedInvitationIds.size > 0) {
+    if (updatedInvitationIds.size > 0 && !isConfirmation) {
       await supabase
         .from('invitations')
         .update({ status: 'RSVPed' })
