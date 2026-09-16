@@ -623,8 +623,8 @@ export async function getUserStats(userId) {
           personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0 })
         }
         const s = personRsvps.get(r.invitee_id)
-        if (r.rsvp_status === 'Attending') s.attending++
-        else if (r.rsvp_status === 'Not Attending') s.notAttending++
+        if (r.rsvp_status === 'Attending' || r.rsvp_status === 'Confirmed') s.attending++
+        else if (r.rsvp_status === 'Not Attending' || r.rsvp_status === 'Declined') s.notAttending++
         else s.pending++
       }
     })
@@ -637,6 +637,8 @@ export async function getUserStats(userId) {
     else if (s.notAttending > 0) notAttending++
   })
 
+
+
   const { data: userRec } = await supabase.from('users').select('extra_thaals').eq('id', userId).single()
 
   return {
@@ -648,7 +650,7 @@ export async function getUserStats(userId) {
     attending,
     notAttending,
     pendingRsvps,
-    totalSeatsConsumed: rsvps.length,
+    totalSeatsConsumed: rsvps.filter(r => r.rsvp_status !== 'Not Attending' && r.rsvp_status !== 'Declined').length,
     seatsPerEvent,
     extra_thaals: userRec?.extra_thaals || 0
   }
@@ -685,8 +687,8 @@ export async function getAdminStats() {
         personRsvps.set(personKey, { attending: 0, pending: 0, notAttending: 0 })
       }
       const s = personRsvps.get(personKey)
-      if (r.rsvp_status === 'Attending') s.attending++
-      else if (r.rsvp_status === 'Not Attending') s.notAttending++
+      if (r.rsvp_status === 'Attending' || r.rsvp_status === 'Confirmed') s.attending++
+      else if (r.rsvp_status === 'Not Attending' || r.rsvp_status === 'Declined') s.notAttending++
       else s.pending++
     })
   }
@@ -1090,6 +1092,162 @@ export async function submitRsvp(invitationId, rsvpData) {
         .update({ status: 'RSVPed' })
         .in('id', Array.from(updatedInvitationIds))
     }
+      
+    return { success: true }
+  } catch (error) {
+    return { error: error.message }
+  }
+}
+
+// --------------------------- Confirmations -----------------------------------
+
+export async function createConfirmation(userId, payload) {
+  const { data: record, error } = await supabase
+    .from('confirmations')
+    .insert([{
+      bride_groom_user_id: userId,
+      family_id: payload.family_id,
+      whatsapp_recipient_member_id: payload.recipient.member_id,
+      status: 'Ready',
+      generated_message: payload.message,
+    }])
+    .select()
+    .single()
+    
+  if (error) throw error
+  
+  const inviteeIds = payload.invitee_ids
+  
+  await supabase
+    .from('invitees')
+    .update({ confirmation_status: 'Ready' })
+    .in('id', inviteeIds)
+
+  return {
+    ...record,
+    surname: payload.surname,
+    hof_its: payload.hof_its,
+    recipient_name: payload.recipient.full_name,
+    recipient_mobile: payload.recipient.mobile,
+  }
+}
+
+export async function updateConfirmationStatus(confirmationId, status) {
+  const updateData = { status }
+  if (status === 'Sent') updateData.sent_at = new Date().toISOString()
+  
+  const { data: confirmation, error } = await supabase
+    .from('confirmations')
+    .update(updateData)
+    .eq('id', confirmationId)
+    .select()
+    .single()
+    
+  if (error) throw error
+  
+  const { data: invitees } = await supabase
+    .from('invitees')
+    .select('id')
+    .eq('family_id', confirmation.family_id)
+    .eq('bride_groom_user_id', confirmation.bride_groom_user_id)
+    
+  if (invitees && invitees.length > 0) {
+    const inviteeIds = invitees.map(i => i.id)
+    await supabase
+      .from('invitees')
+      .update({ confirmation_status: status })
+      .in('id', inviteeIds)
+  }
+  
+  return confirmation
+}
+
+export async function updateConfirmationMessage(confirmationId, message) {
+  const { data: confirmation, error } = await supabase
+    .from('confirmations')
+    .update({ generated_message: message })
+    .eq('id', confirmationId)
+    .select()
+    .single()
+    
+  if (error) throw error
+  return confirmation
+}
+
+export async function getConfirmationsByUser(userId) {
+  const { data: confirmations, error } = await supabase
+    .from('confirmations')
+    .select(`
+      *,
+      families (surname, hof_its),
+      family_members (full_name, mobile)
+    `)
+    .eq('bride_groom_user_id', userId)
+    .order('created_at', { ascending: false })
+    
+  if (error) return []
+  
+  return confirmations.map(conf => ({
+    ...conf,
+    surname: conf.families?.surname,
+    hof_its: conf.families?.hof_its,
+    recipient_name: Array.isArray(conf.family_members) ? conf.family_members[0]?.full_name : conf.family_members?.full_name,
+    recipient_mobile: Array.isArray(conf.family_members) ? conf.family_members[0]?.mobile : conf.family_members?.mobile,
+  }))
+}
+
+export async function getPublicConfirmationDetails(confirmationId) {
+  const { data: conf, error } = await supabase
+    .from('confirmations')
+    .select(`
+      id,
+      status,
+      family_id,
+      bride_groom_user_id,
+      families (surname, hof_its),
+      users (display_name)
+    `)
+    .eq('id', confirmationId)
+    .single()
+    
+  if (error || !conf) {
+    console.error("Error fetching public confirmation:", error)
+    return { error: 'Confirmation not found.' }
+  }
+
+  // Fetch invitees for this family & user
+  const { data: invitees } = await supabase
+    .from('invitees')
+    .select('id, member_id, full_name, confirmation_status')
+    .eq('family_id', conf.family_id)
+    .eq('bride_groom_user_id', conf.bride_groom_user_id)
+    .eq('selected', true)
+
+  return {
+    confirmation: {
+      id: conf.id,
+      status: conf.status,
+      surname: conf.families?.surname,
+      invited_by: conf.users?.display_name
+    },
+    invitees: invitees || []
+  }
+}
+
+export async function submitConfirmation(confirmationId, responses) {
+  // responses is an array of { id: invitee_id, status: 'Confirmed' | 'Declined' }
+  try {
+    for (const res of responses) {
+      await supabase
+        .from('invitees')
+        .update({ confirmation_status: res.status })
+        .eq('id', res.id)
+    }
+    
+    await supabase
+      .from('confirmations')
+      .update({ status: 'Responded' })
+      .eq('id', confirmationId)
       
     return { success: true }
   } catch (error) {

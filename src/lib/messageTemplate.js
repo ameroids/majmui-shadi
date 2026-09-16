@@ -9,11 +9,14 @@ You are warmly invited to the wedding events of {{groom_first_name}} and {{bride
 
 We look forward to celebrating these special occasions with you.
 
+Please confirm your attendance by clicking the link below:
+{{confirmation_link}}
+
 With warm regards,
 {{sender_family}}
 Majmui Shaadi`
 
-const TEMPLATE_KEY = 'majmui_shaadi_template_v6'
+const TEMPLATE_KEY = 'majmui_shaadi_template_v8'
 
 export function getTemplate() {
   return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE
@@ -59,6 +62,7 @@ export function generateMessage({ recipientName, activeMembers, events, memberEv
     .replaceAll('{{bride_first_name}}', brideFirstName)
     .replaceAll('{{groom_first_name}}', groomFirstName)
     .replaceAll('{{sender_family}}', senderFamily)
+    .replaceAll('{{confirmation_link}}', '[CONFIRMATION_LINK_PLACEHOLDER]')
 }
 
 export function generateRsvpMessage(recipientName, rsvpUrl) {

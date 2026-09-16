@@ -12,6 +12,7 @@ import TNCEventReportsPage from './pages/TNCEventReportsPage'
 import TNCIndividualReportsPage from './pages/TNCIndividualReportsPage'
 import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
 import TNCExtraThaalsPage from './pages/TNCExtraThaalsPage'
+import ConfirmationPage from './pages/ConfirmationPage'
 import RSVPPage from './pages/RSVPPage'
 import PrintRosterPage from './pages/PrintRosterPage'
 
@@ -22,6 +23,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+            <Route path="/confirm/:id" element={<ConfirmationPage />} />
             <Route path="/rsvp/:id" element={<RSVPPage />} />
 
             <Route path="/dashboard" element={

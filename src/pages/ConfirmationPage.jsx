@@ -1,34 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPublicInvitationDetails, submitRsvp, getGlobalRsvpStatus } from '../lib/db'
+import { getPublicInvitationDetails, submitRsvp } from '../lib/db'
 import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
 
-export default function RSVPPage() {
+export default function ConfirmationPage() {
   const { id } = useParams()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
-  const [globalRsvpOpen, setGlobalRsvpOpen] = useState(true)
   
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
   
-  // State to track responses: { [inviteeId]: 'Attending' | 'Not Attending' }
+  // State to track responses: { [inviteeId]: 'Confirmed' | 'Declined' }
   const [responses, setResponses] = useState({})
   const [lockedResponses, setLockedResponses] = useState({})
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [{ invitation: invData, invitees: inviteesData, error: dbErr }, rsvpOpen] = await Promise.all([
-          getPublicInvitationDetails(id),
-          getGlobalRsvpStatus()
-        ])
+        const { invitation: invData, invitees: inviteesData, error: dbErr } = await getPublicInvitationDetails(id)
         
-        setGlobalRsvpOpen(rsvpOpen)
         if (dbErr) {
           setError(dbErr)
         } else {
@@ -41,8 +36,9 @@ export default function RSVPPage() {
           inviteesData.forEach(inv => {
             inv.events.forEach(ev => {
               initialResponses[ev.junction_id] = ev.rsvp_status
-              // Lock if they declined in Phase 2, or already did final RSVP
-              if (ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending' || ev.rsvp_status === 'Declined') {
+              // Lock if they already confirmed, declined, or did full RSVP later
+              if (ev.rsvp_status === 'Confirmed' || ev.rsvp_status === 'Declined' || 
+                  ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending') {
                 initialLocked[ev.junction_id] = true
               }
             })
@@ -77,7 +73,7 @@ export default function RSVPPage() {
     
     const missingInvitees = []
     invitees.forEach(inv => {
-      const hasMissingEvent = inv.events.some(ev => !lockedResponses[ev.junction_id] && (responses[ev.junction_id] === 'Pending' || responses[ev.junction_id] === 'Confirmed'))
+      const hasMissingEvent = inv.events.some(ev => !lockedResponses[ev.junction_id] && responses[ev.junction_id] === 'Pending')
       if (hasMissingEvent) {
         missingInvitees.push(inv.full_name)
       }
@@ -85,7 +81,7 @@ export default function RSVPPage() {
 
     if (missingInvitees.length > 0) {
       const names = missingInvitees.join(', ')
-      setFormError(`Please select 'Attending' or 'Not Attending' for ${names} before submitting.`)
+      setFormError(`Please select 'Plan to Attend' or 'Cannot Attend' for ${names} before submitting.`)
       return
     }
 
@@ -110,7 +106,7 @@ export default function RSVPPage() {
     if (success) {
       setSuccess(true)
     } else {
-      setFormError(submitErr || 'Failed to submit RSVP. Please try again.')
+      setFormError(submitErr || 'Failed to submit confirmation. Please try again.')
     }
     setSubmitting(false)
   }
@@ -142,9 +138,9 @@ export default function RSVPPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-xl shadow-sm text-center max-w-md w-full border border-green-100">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">RSVP Received</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirmation Received</h2>
           <p className="text-gray-600 mb-6">
-            Jazakallah! Your response has been recorded.
+            Jazakallah! Your initial response has been recorded. We will send a final RSVP link closer to the event.
           </p>
         </div>
       </div>
@@ -176,8 +172,8 @@ export default function RSVPPage() {
         {/* Form Section */}
         <div className="p-8">
           <div className="mb-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Please confirm your attendance</h2>
-            <p className="text-gray-500 text-sm">Select who will be attending from your family.</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Please confirm your initial attendance</h2>
+            <p className="text-gray-500 text-sm">Select who is planning to attend from your family so we can finalize our guest list.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -190,40 +186,40 @@ export default function RSVPPage() {
                       <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <span className="text-gray-700 font-medium">{ev.event_name}</span>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {!globalRsvpOpen || lockedResponses[ev.junction_id] ? (
+                        {lockedResponses[ev.junction_id] ? (
                           <span className={`px-4 py-1.5 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 ${
-                            responses[ev.junction_id] === 'Attending' 
+                            (responses[ev.junction_id] === 'Confirmed' || responses[ev.junction_id] === 'Attending')
                               ? 'bg-emerald/10 text-emerald-deep' 
-                              : responses[ev.junction_id] === 'Not Attending'
+                              : (responses[ev.junction_id] === 'Declined' || responses[ev.junction_id] === 'Not Attending')
                                 ? 'bg-wine/10 text-wine'
                                 : 'bg-ivory-soft text-ink/60'
                           }`}>
-                            {lockedResponses[ev.junction_id] && <CheckCircle2 className="w-4 h-4" />}
-                            {lockedResponses[ev.junction_id] ? `Already Responded: ${responses[ev.junction_id]}` : responses[ev.junction_id]}
+                            <CheckCircle2 className="w-4 h-4" />
+                            Already Responded: {responses[ev.junction_id]}
                           </span>
                         ) : (
                           <>
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(ev.junction_id, 'Attending')}
+                              onClick={() => handleStatusChange(ev.junction_id, 'Confirmed')}
                               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                                responses[ev.junction_id] === 'Attending' 
+                                responses[ev.junction_id] === 'Confirmed' 
                                   ? 'bg-emerald text-white shadow-sm' 
                                   : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
                               }`}
                             >
-                              Attending
+                              Plan to Attend
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(ev.junction_id, 'Not Attending')}
+                              onClick={() => handleStatusChange(ev.junction_id, 'Declined')}
                               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                                responses[ev.junction_id] === 'Not Attending' 
+                                responses[ev.junction_id] === 'Declined' 
                                   ? 'bg-wine text-white shadow-sm' 
                                   : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
                               }`}
                             >
-                              Not Attending
+                              Cannot Attend
                             </button>
                           </>
                         )}
@@ -236,12 +232,7 @@ export default function RSVPPage() {
             </div>
             
             <div className="pt-6 border-t border-gray-100">
-              {!globalRsvpOpen ? (
-                <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
-                  <p className="text-rose-700 font-medium">RSVPs are now closed.</p>
-                  <p className="text-sm text-rose-600/80 mt-1">Thank you for your overwhelming response.</p>
-                </div>
-              ) : Object.keys(responses).length > 0 && Object.keys(responses).every(jid => lockedResponses[jid]) ? (
+              {Object.keys(responses).length > 0 && Object.keys(responses).every(jid => lockedResponses[jid]) ? (
                 <div className="mb-4 p-4 rounded-xl bg-emerald-soft/30 border border-emerald-soft text-center">
                   <p className="text-emerald-deep font-medium flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-5 h-5" />
@@ -268,7 +259,7 @@ export default function RSVPPage() {
                         Submitting...
                       </>
                     ) : (
-                      'Submit RSVP'
+                      'Submit Confirmation'
                     )}
                   </Button>
                 </>

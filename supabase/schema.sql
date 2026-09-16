@@ -79,12 +79,27 @@ create table if not exists invitees (
   gender text,
   selected boolean not null default true,
   invitation_status text not null default 'Not Invited',
+  confirmation_status text not null default 'Not Sent' check (confirmation_status in ('Not Sent', 'Sent', 'Confirmed', 'Declined')),
   created_at timestamptz not null default now(),
   unique (bride_groom_user_id, member_id)
 );
 
 create index if not exists idx_invitees_user on invitees(bride_groom_user_id);
 create index if not exists idx_invitees_family on invitees(family_id);
+
+-- ---------------------------------------------------------------------------
+-- confirmations: one row per family per WhatsApp message for early confirmation.
+-- ---------------------------------------------------------------------------
+create table if not exists confirmations (
+  id uuid primary key default gen_random_uuid(),
+  bride_groom_user_id uuid not null references users(id) on delete cascade,
+  family_id uuid not null references families(id) on delete cascade,
+  whatsapp_recipient_member_id uuid not null references family_members(id),
+  status text not null default 'Draft' check (status in ('Draft', 'Ready', 'WhatsApp Opened', 'Sent', 'Responded')),
+  generated_message text not null,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz
+);
 
 -- ---------------------------------------------------------------------------
 -- invitations: one row per family per WhatsApp message (one representative).
@@ -128,6 +143,12 @@ create policy "Bride/groom manage their own invitees"
 
 create policy "Bride/groom manage their own invitations"
   on invitations for all
+  using (bride_groom_user_id = auth.uid())
+  with check (bride_groom_user_id = auth.uid());
+
+alter table confirmations enable row level security;
+create policy "Bride/groom manage their own confirmations"
+  on confirmations for all
   using (bride_groom_user_id = auth.uid())
   with check (bride_groom_user_id = auth.uid());
 
