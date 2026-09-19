@@ -13,8 +13,8 @@ import { getUserStats, getInvitationsByUser, getEvents, getGlobalPhaseVisibility
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
   { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
-  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
   { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
+  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
 ]
 
 export default function BrideGroomDashboard() {

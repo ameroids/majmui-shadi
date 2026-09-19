@@ -18,8 +18,8 @@ import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
   { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
-  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
   { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
+  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
 ]
 
 const STEPS = ['Select Family', 'Configure Invitation', 'Preview & Send']

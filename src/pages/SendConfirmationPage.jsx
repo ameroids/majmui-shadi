@@ -16,8 +16,8 @@ import {
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
   { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
-  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
   { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
+  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
 ]
 
 export default function SendConfirmationPage() {
@@ -193,13 +193,17 @@ export default function SendConfirmationPage() {
                             })
                           })
                           
-                          return Array.from(members.values()).map((m, idx) => (
+                          return Array.from(members.values())
+                            .map(m => ({
+                              ...m,
+                              events: m.events.filter(ev => filterEventId === 'all' || ev.id === filterEventId)
+                            }))
+                            .filter(m => m.events.length > 0)
+                            .map((m, idx) => (
                             <div key={idx} className="bg-white rounded border border-ivory-line p-2 shadow-sm">
                               <div className="font-medium text-ink mb-1.5">{m.name}:</div>
                               <div className="space-y-1.5 pl-2">
-                                {m.events
-                                  .filter(ev => filterEventId === 'all' || ev.id === filterEventId)
-                                  .map((ev, evIdx) => {
+                                {m.events.map((ev, evIdx) => {
                                   let uiStatus = ev.status
                                   if (ev.status === 'Attending' || ev.status === 'Not Attending') {
                                     uiStatus = 'Confirmed'
