@@ -14,6 +14,7 @@ import Modal from '../components/ui/Modal'
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
   { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
+  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
   { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
 ]
 
@@ -266,6 +267,7 @@ export default function AddInviteePage() {
   const filteredNav = NAV.filter(n => {
     if (n.path === '/dashboard/add-invitee' && !phaseVisibility.phase_1_visible) return false
     if (n.path === '/dashboard/send-invitation' && !phaseVisibility.phase_2_visible) return false
+    if (n.path === '/dashboard/send-confirmation' && !phaseVisibility.phase_2_visible) return false
     return true
   })
 

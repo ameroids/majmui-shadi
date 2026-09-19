@@ -120,7 +120,7 @@ create table if not exists invitation_member_events (
   invitation_id uuid not null references invitations(id) on delete cascade,
   invitee_id uuid not null references invitees(id) on delete cascade,
   event_id uuid not null references events(id) on delete cascade,
-  rsvp_status text not null default 'Pending' check (rsvp_status in ('Pending', 'Attending', 'Not Attending')),
+  rsvp_status text not null default 'Pending' check (rsvp_status in ('Pending', 'Attending', 'Not Attending', 'Confirmed', 'Declined')),
   unique(invitation_id, invitee_id, event_id)
 );
 
@@ -160,3 +160,17 @@ alter table events enable row level security;
 create policy "Everyone can read families" on families for select using (true);
 create policy "Everyone can read family members" on family_members for select using (true);
 create policy "Everyone can read events" on events for select using (true);
+
+-- Public access policies for RSVPs and Confirmations (used by unauthenticated guests via public links)
+create policy "Public can read invitations" on invitations for select using (true);
+create policy "Public can update invitations" on invitations for update using (true);
+
+create policy "Public can read invitees" on invitees for select using (true);
+create policy "Public can update invitees" on invitees for update using (true);
+
+create policy "Public can read invitation_member_events" on invitation_member_events for select using (true);
+create policy "Public can update invitation_member_events" on invitation_member_events for update using (true);
+
+create policy "Public can read confirmations" on confirmations for select using (true);
+create policy "Public can update confirmations" on confirmations for update using (true);
+

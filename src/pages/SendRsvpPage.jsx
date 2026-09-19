@@ -92,13 +92,7 @@ export default function SendInvitationPage() {
     }
   }
 
-  const [openedRsvpLinks, setOpenedRsvpLinks] = useState(new Set())
-
   const handleMarkRsvpSent = async (invitation) => {
-    if (!openedRsvpLinks.has(invitation.id)) {
-      showToast('Please click "Send RSVP Link" to open WhatsApp before marking it as sent.', 'error')
-      return
-    }
     await updateInvitationStatus(invitation.id, 'RSVP Sent')
     showToast(`Marked ${invitation.surname} family's RSVP as sent.`)
     loadAll()
@@ -112,8 +106,6 @@ export default function SendInvitationPage() {
 
     const rsvpUrl = `${window.location.origin}/rsvp/${invitation.id}`
     const message = generateRsvpMessage(invitation.recipient_name, rsvpUrl)
-    
-    setOpenedRsvpLinks(prev => new Set([...prev, invitation.id]))
     
     if (window.Android && window.Android.shareToWhatsApp) {
       window.Android.shareToWhatsApp(invitation.recipient_mobile, message)

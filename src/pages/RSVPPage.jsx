@@ -38,17 +38,25 @@ export default function RSVPPage() {
           // Initialize responses state based on current rsvp_status
           const initialResponses = {}
           const initialLocked = {}
-          inviteesData.forEach(inv => {
+          
+          // Filter out events that were declined in Phase 3
+          const filteredInvitees = inviteesData.map(inv => {
+            const filteredEvents = inv.events.filter(ev => ev.rsvp_status !== 'Declined')
+            return { ...inv, events: filteredEvents }
+          }).filter(inv => inv.events.length > 0)
+          
+          filteredInvitees.forEach(inv => {
             inv.events.forEach(ev => {
               initialResponses[ev.junction_id] = ev.rsvp_status
-              // Lock if they declined in Phase 2, or already did final RSVP
-              if (ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending' || ev.rsvp_status === 'Declined') {
+              // Lock if they already did final RSVP
+              if (ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending') {
                 initialLocked[ev.junction_id] = true
               }
             })
           })
           setResponses(initialResponses)
           setLockedResponses(initialLocked)
+          setInvitees(filteredInvitees)
         }
       } catch (err) {
         setError('Failed to load invitation.')

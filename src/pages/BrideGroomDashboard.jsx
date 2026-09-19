@@ -13,6 +13,7 @@ import { getUserStats, getInvitationsByUser, getEvents, getGlobalPhaseVisibility
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
   { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
+  { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
   { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
 ]
 
@@ -48,6 +49,7 @@ export default function BrideGroomDashboard() {
   const filteredNav = NAV.filter(n => {
     if (n.path === '/dashboard/add-invitee' && !phaseVisibility.phase_1_visible) return false
     if (n.path === '/dashboard/send-invitation' && !phaseVisibility.phase_2_visible) return false
+    if (n.path === '/dashboard/send-confirmation' && !phaseVisibility.phase_2_visible) return false
     return true
   })
 
@@ -176,10 +178,15 @@ export default function BrideGroomDashboard() {
             </section>
             )}
 
-            {/* Phase 2: Confirmations */}
+            {/* Phase 3: Confirmations */}
             {phaseVisibility.phase_2_visible && (
               <section className="mb-8">
-                <h2 className="font-display text-2xl font-semibold text-emerald-deep mb-4">Phase 2: Initial Confirmations</h2>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h2 className="font-display text-2xl font-semibold text-emerald-deep">Phase 3: Initial Confirmations</h2>
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/send-confirmation')}>
+                    Manage Confirmations →
+                  </Button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <StatCard label="Confirmed" value={stats.confirmed || 0} />
                   <StatCard label="Declined" value={stats.declined || 0} />
@@ -202,10 +209,10 @@ export default function BrideGroomDashboard() {
               <div className="h-px bg-ivory-line w-full mb-8" />
             )}
 
-            {/* Phase 3: RSVPs */}
+            {/* Phase 4: RSVPs */}
             {phaseVisibility.phase_3_visible && (
               <section>
-              <h2 className="font-display text-2xl font-semibold text-emerald-deep mb-4">Phase 3: RSVPs</h2>
+              <h2 className="font-display text-2xl font-semibold text-emerald-deep mb-4">Phase 4: RSVPs</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <StatCard label="Attending" value={stats.attending || 0} />
                 <StatCard label="Not Attending" value={stats.notAttending || 0} />

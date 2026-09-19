@@ -15,7 +15,7 @@ export default function ConfirmationPage() {
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
   
-  // State to track responses: { [inviteeId]: 'Confirmed' | 'Declined' }
+  // State to track responses: { [junction_id]: 'Attending' | 'Not Attending' }
   const [responses, setResponses] = useState({})
   const [lockedResponses, setLockedResponses] = useState({})
 
@@ -30,24 +30,26 @@ export default function ConfirmationPage() {
           setInvitation(invData)
           setInvitees(inviteesData)
           
-          // Initialize responses state based on current rsvp_status
+          // Initialize responses state based on current rsvp_status of their events
           const initialResponses = {}
           const initialLocked = {}
+          
           inviteesData.forEach(inv => {
+            if (!inv.events || inv.events.length === 0) return
+            
             inv.events.forEach(ev => {
               initialResponses[ev.junction_id] = ev.rsvp_status
-              // Lock if they already confirmed, declined, or did full RSVP later
-              if (ev.rsvp_status === 'Confirmed' || ev.rsvp_status === 'Declined' || 
-                  ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending') {
+              if (ev.rsvp_status === 'Attending' || ev.rsvp_status === 'Not Attending' || ev.rsvp_status === 'Declined' || ev.rsvp_status === 'Confirmed') {
                 initialLocked[ev.junction_id] = true
               }
             })
           })
+          
           setResponses(initialResponses)
           setLockedResponses(initialLocked)
         }
       } catch (err) {
-        setError('Failed to load invitation.')
+        setError('Failed to load confirmation request.')
       } finally {
         setLoading(false)
       }
@@ -73,7 +75,7 @@ export default function ConfirmationPage() {
     
     const missingInvitees = []
     invitees.forEach(inv => {
-      const hasMissingEvent = inv.events.some(ev => !lockedResponses[ev.junction_id] && responses[ev.junction_id] === 'Pending')
+      const hasMissingEvent = inv.events?.some(ev => !lockedResponses[ev.junction_id] && (responses[ev.junction_id] === 'Pending' || !responses[ev.junction_id] || responses[ev.junction_id] === 'Sent'))
       if (hasMissingEvent) {
         missingInvitees.push(inv.full_name)
       }
@@ -81,7 +83,7 @@ export default function ConfirmationPage() {
 
     if (missingInvitees.length > 0) {
       const names = missingInvitees.join(', ')
-      setFormError(`Please select 'Plan to Attend' or 'Cannot Attend' for ${names} before submitting.`)
+      setFormError(`Please select 'Plan to Attend' or 'Cannot Attend' for all events of ${names} before submitting.`)
       return
     }
 
@@ -101,33 +103,35 @@ export default function ConfirmationPage() {
       return
     }
     
-    const { success, error: submitErr } = await submitRsvp(id, rsvpData, true)
+    const { error: submitErr } = await submitRsvp(id, rsvpData, true) // isConfirmation = true
     
-    if (success) {
-      setSuccess(true)
+    if (submitErr) {
+      setFormError(submitErr)
+      setSubmitting(false)
     } else {
-      setFormError(submitErr || 'Failed to submit confirmation. Please try again.')
+      setSuccess(true)
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-ivory">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-deep" />
+      <div className="min-h-screen bg-ivory flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4 text-emerald">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="font-medium">Loading invitation details...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-xl shadow-sm text-center max-w-md w-full border border-red-100">
-          <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            !
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Oops!</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+      <div className="min-h-screen bg-ivory flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-ivory-line">
+          <AlertCircle className="h-12 w-12 text-wine mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-wine mb-2">Access Error</h2>
+          <p className="text-ink/70">{error}</p>
         </div>
       </div>
     )
@@ -135,12 +139,12 @@ export default function ConfirmationPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-xl shadow-sm text-center max-w-md w-full border border-green-100">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirmation Received</h2>
-          <p className="text-gray-600 mb-6">
-            Jazakallah! Your initial response has been recorded. We will send a final RSVP link closer to the event.
+      <div className="min-h-screen bg-ivory flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-emerald/20">
+          <CheckCircle2 className="h-16 w-16 text-emerald mx-auto mb-4" />
+          <h2 className="text-2xl font-display font-bold text-emerald-deep mb-2">Thank You!</h2>
+          <p className="text-ink/70">
+            Your attendance confirmation has been successfully submitted. We look forward to celebrating with you!
           </p>
         </div>
       </div>
@@ -148,130 +152,124 @@ export default function ConfirmationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
-        
-        {/* Header Section */}
-        <div className="bg-emerald-soft/30 p-8 text-center border-b border-ivory-line">
-          <div className="flex justify-center mb-6">
-            <Logo className="h-12 w-auto" />
-          </div>
-          <h1 className="text-3xl font-display text-emerald-deep mb-2">You're Invited!</h1>
-          {invitation?.invited_by && (
-            <p className="text-ink/70 text-lg">
-              Invited by <span className="font-medium text-ink">{invitation.invited_by}</span>
-            </p>
-          )}
-          {invitation?.surname && (
-            <div className="mt-4 text-sm text-gray-500 uppercase tracking-widest font-semibold">
-              {invitation.surname} Family
-            </div>
-          )}
+    <div className="min-h-screen bg-ivory py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex justify-center mb-8">
+          <Logo />
         </div>
-
-        {/* Form Section */}
-        <div className="p-8">
-          <div className="mb-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Please confirm your initial attendance</h2>
-            <p className="text-gray-500 text-sm">Select who is planning to attend from your family so we can finalize our guest list.</p>
+        
+        <div className="bg-white rounded-2xl shadow-xl border border-ivory-line overflow-hidden">
+          <div className="bg-emerald-deep px-8 py-10 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] mix-blend-overlay"></div>
+            <h1 className="text-3xl font-display font-bold text-gold relative z-10">Attendance Confirmation</h1>
+            <p className="text-ivory/80 mt-2 text-lg relative z-10">
+              The {invitation.surname} Family
+            </p>
+            {invitation.invited_by && (
+              <p className="text-ivory/60 text-sm mt-4 relative z-10">
+                Invited by: {invitation.invited_by}
+              </p>
+            )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              {invitees.map(invitee => (
-                <div key={invitee.id} className="p-4 rounded-lg border border-gray-100 bg-gray-50 mb-4">
-                  <h3 className="font-semibold text-gray-900 mb-3 text-lg border-b pb-2">{invitee.full_name}</h3>
-                  <div className="space-y-3">
-                    {invitee.events.map(ev => (
-                      <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <span className="text-gray-700 font-medium">{ev.event_name}</span>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {lockedResponses[ev.junction_id] ? (
-                          <span className={`px-4 py-1.5 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 ${
-                            (responses[ev.junction_id] === 'Confirmed' || responses[ev.junction_id] === 'Attending')
-                              ? 'bg-emerald/10 text-emerald-deep' 
-                              : (responses[ev.junction_id] === 'Declined' || responses[ev.junction_id] === 'Not Attending')
-                                ? 'bg-wine/10 text-wine'
-                                : 'bg-ivory-soft text-ink/60'
-                          }`}>
-                            <CheckCircle2 className="w-4 h-4" />
-                            Already Responded: {responses[ev.junction_id]}
-                          </span>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(ev.junction_id, 'Confirmed')}
-                              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                                responses[ev.junction_id] === 'Confirmed' 
-                                  ? 'bg-emerald text-white shadow-sm' 
-                                  : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
-                              }`}
-                            >
-                              Plan to Attend
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(ev.junction_id, 'Declined')}
-                              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none ${
-                                responses[ev.junction_id] === 'Declined' 
-                                  ? 'bg-wine text-white shadow-sm' 
-                                  : 'text-ink/60 hover:text-ink hover:bg-ivory-soft/50'
-                              }`}
-                            >
-                              Cannot Attend
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      </div>
-                    ))}
+          <form onSubmit={handleSubmit} className="p-8">
+            <p className="text-ink/70 mb-8 text-center max-w-lg mx-auto">
+              Please let us know if you and your family members will be able to attend the wedding events.
+            </p>
+
+            <div className="space-y-6">
+              {invitees.map((invitee) => {
+                return (
+                  <div key={invitee.id} className="bg-ivory-soft rounded-xl p-5 border border-ivory-line transition-all hover:border-emerald/30">
+                    <h3 className="font-semibold text-lg text-ink mb-4 border-b border-ivory-line pb-3">{invitee.full_name}</h3>
+                    
+                    <div className="space-y-4">
+                      {invitee.events?.map(ev => {
+                        const status = responses[ev.junction_id] || 'Pending'
+                        const isLocked = lockedResponses[ev.junction_id]
+                        
+                        return (
+                          <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <span className="font-medium text-ink/80">{ev.event_name}</span>
+                              {isLocked && (
+                                <div className="text-xs font-medium text-ink/50 mt-1">
+                                  Already responded: {status === 'Attending' || status === 'Confirmed' ? 'Plan to Attend' : 'Cannot Attend'}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={isLocked || submitting}
+                                onClick={() => handleStatusChange(ev.junction_id, 'Confirmed')}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  status === 'Attending' || status === 'Confirmed'
+                                    ? 'bg-emerald text-white shadow-md shadow-emerald/20 scale-105'
+                                    : isLocked
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                      : 'bg-white text-ink/70 border border-ivory-line hover:border-emerald hover:text-emerald'
+                                }`}
+                              >
+                                Plan to Attend
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLocked || submitting}
+                                onClick={() => handleStatusChange(ev.junction_id, 'Declined')}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  status === 'Declined' || status === 'Not Attending'
+                                    ? 'bg-wine text-white shadow-md shadow-wine/20 scale-105'
+                                    : isLocked
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                      : 'bg-white text-ink/70 border border-ivory-line hover:border-wine hover:text-wine'
+                                }`}
+                              >
+                                Cannot Attend
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+
+            {formError && (
+              <div className="mt-8 p-4 bg-wine/10 border border-wine/20 rounded-lg flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-wine shrink-0 mt-0.5" />
+                <p className="text-wine text-sm font-medium">{formError}</p>
+              </div>
+            )}
+
+            <div className="mt-10">
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full text-lg h-14 shadow-xl shadow-emerald/20"
+                disabled={submitting || Object.values(lockedResponses).length === invitees.reduce((acc, inv) => acc + (inv.events?.length || 0), 0)}
+              >
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Submitting...
+                  </span>
+                ) : Object.values(lockedResponses).length > 0 && Object.values(lockedResponses).length === invitees.reduce((acc, inv) => acc + (inv.events?.length || 0), 0) ? (
+                  'All Responses Submitted'
+                ) : (
+                  'Submit Confirmations'
+                )}
+              </Button>
             </div>
             
-            <div className="pt-6 border-t border-gray-100">
-              {Object.keys(responses).length > 0 && Object.keys(responses).every(jid => lockedResponses[jid]) ? (
-                <div className="mb-4 p-4 rounded-xl bg-emerald-soft/30 border border-emerald-soft text-center">
-                  <p className="text-emerald-deep font-medium flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    All responses submitted successfully
-                  </p>
-                  <p className="text-sm text-ink/60 mt-1">You have already responded for all invited members.</p>
-                </div>
-              ) : (
-                <>
-                  {formError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center flex items-center justify-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      {formError}
-                    </div>
-                  )}
-                  <Button
-                    type="submit"
-                    className="w-full text-lg py-4 rounded-xl font-medium shadow-md hover:shadow-lg transition-all"
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      'Submit Confirmation'
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
+            <p className="text-center text-ink/40 text-xs mt-6">
+              Powered by Majmui Shaadi
+            </p>
           </form>
         </div>
-        
-      </div>
-      
-      <div className="mt-8 text-center text-sm text-gray-400">
-        <p>Majmui Shaadi Management System</p>
       </div>
     </div>
   )

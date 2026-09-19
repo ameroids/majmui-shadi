@@ -293,8 +293,8 @@ function UsersTable({ users, onRefresh }) {
       </div>
       <div className="flex items-center shadow-sm rounded-md overflow-hidden border border-wine/20">
         <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations.')} title="Reset Phase 1 (Invitees)">P1</button>
-        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 2, 'Phase 2 (Invitations)', 'This will delete generated invitations, but keep the invitee list intact.')} title="Reset Phase 2 (Invitations)">P2</button>
-        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending".')} title="Reset Phase 3 (RSVPs)">P3</button>
+        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 2, 'Phase 2 & 3 (Invitations & Confirmations)', 'This will delete generated invitations, but keep the invitee list intact.')} title="Reset Phase 2 & 3 (Invitations)">P2/3</button>
+        <button className="text-[10px] font-bold text-wine hover:bg-wine/10 px-2 py-1.5 border-r border-wine/20 transition-colors" onClick={() => handlePhaseReset(u, 3, 'Phase 4 (RSVPs)', 'This will reset all RSVP statuses to "Pending".')} title="Reset Phase 4 (RSVPs)">P4</button>
         <button className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-1.5 transition-colors" onClick={() => handleReset(u)} title="Reset All Data">ALL</button>
       </div>
     </li>
@@ -316,11 +316,11 @@ function UsersTable({ users, onRefresh }) {
             <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations for all brides.')}>
               Reset All P1
             </Button>
-            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 2, 'Phase 2 (Invitations)', 'This will delete generated invitations for all brides, but keep their invitee lists intact.')}>
-              Reset All P2
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 2, 'Phase 2 & 3 (Invitations)', 'This will delete generated invitations for all brides, but keep their invitee lists intact.')}>
+              Reset All P2 & P3
             </Button>
-            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all brides.')}>
-              Reset All P3
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(brides, 'Bride', 3, 'Phase 4 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all brides.')}>
+              Reset All P4
             </Button>
           </div>
         </div>
@@ -342,11 +342,11 @@ function UsersTable({ users, onRefresh }) {
             <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 1, 'Phase 1 (Invitees)', 'This will permanently delete all invitees and invitations for all grooms.')}>
               Reset All P1
             </Button>
-            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 2, 'Phase 2 (Invitations)', 'This will delete generated invitations for all grooms, but keep their invitee lists intact.')}>
-              Reset All P2
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 2, 'Phase 2 & 3 (Invitations)', 'This will delete generated invitations for all grooms, but keep their invitee lists intact.')}>
+              Reset All P2 & P3
             </Button>
-            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all grooms.')}>
-              Reset All P3
+            <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(grooms, 'Groom', 3, 'Phase 4 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for all grooms.')}>
+              Reset All P4
             </Button>
           </div>
         </div>
@@ -539,7 +539,7 @@ function PhasesTable({ users, onRefresh, phaseVisibility }) {
         </div>
         <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30 mt-3">
           <div>
-            <p className="font-medium text-emerald-deep">Phase 2: Invitations Visibility</p>
+            <p className="font-medium text-emerald-deep">Phase 2 & 3: Invitations & Confirmations Visibility</p>
             <p className="text-xs text-ink/60 mt-1">If hidden, brides/grooms will not see the Send Invitations sections.</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -549,7 +549,7 @@ function PhasesTable({ users, onRefresh, phaseVisibility }) {
         </div>
         <div className="flex items-center justify-between p-4 border border-ivory-line rounded-lg bg-ivory-soft/30 mt-3">
           <div>
-            <p className="font-medium text-emerald-deep">Phase 3: RSVPs Visibility</p>
+            <p className="font-medium text-emerald-deep">Phase 4: RSVPs Visibility</p>
             <p className="text-xs text-ink/60 mt-1">If hidden, brides/grooms will not see the RSVP status on their dashboard.</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">

@@ -33,6 +33,10 @@ export default function TNCRsvpReportsPage() {
       
       const byPerson = {}
       rsvpData.forEach(r => {
+        // We only want to show people who accepted (Confirmed, Attending, Not Attending, Pending)
+        // We do NOT want to show people who Declined in Phase 3
+        if (r.rsvp_status === 'Declined') return;
+
         // Group by member_id to merge duplicates from different hosts
         const personKey = r.member_id || r.invitee_id
         if (!byPerson[personKey]) {
@@ -44,7 +48,7 @@ export default function TNCRsvpReportsPage() {
           byPerson[personKey].invited_by.add(r.invited_by)
         }
 
-        // Only add the event if we haven't added it yet (or we can just prefer 'Attending' over 'Pending' if there are duplicates)
+        // Only add the event if we haven't added it yet
         const existingEvent = byPerson[personKey].events.find(e => e.name === r.event_name)
         if (existingEvent) {
           if (r.rsvp_status === 'Attending') existingEvent.status = 'Attending'
@@ -54,10 +58,12 @@ export default function TNCRsvpReportsPage() {
         }
       })
       
-      const mergedInvitees = Object.values(byPerson).map(person => ({
-        ...person,
-        invited_by: Array.from(person.invited_by).join(', ')
-      }))
+      const mergedInvitees = Object.values(byPerson)
+        .map(person => ({
+          ...person,
+          invited_by: Array.from(person.invited_by).join(', ')
+        }))
+        .filter(person => person.events.length > 0)
       
       setInvitees(mergedInvitees)
       setLoading(false)

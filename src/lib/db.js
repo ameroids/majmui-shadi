@@ -418,7 +418,7 @@ export async function getInvitationsByUser(userId) {
       *,
       families (surname, hof_its),
       family_members (full_name, mobile),
-      invitation_member_events ( invitees (id, full_name), events (id, event_name) )
+      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile), events (id, event_name) )
     `)
     .eq('bride_groom_user_id', userId)
     .order('created_at', { ascending: false })
@@ -452,7 +452,7 @@ export async function getAllInvitations() {
       users (display_name, username),
       families (surname, hof_its),
       family_members (full_name, mobile),
-      invitation_member_events ( invitees (id, full_name), events (id, event_name) )
+      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile), events (id, event_name) )
     `)
     .order('created_at', { ascending: false })
     
@@ -598,6 +598,7 @@ export async function getUserStats(userId) {
   const { data: userInvs } = await supabase.from('invitations').select('id, status').eq('bride_groom_user_id', userId)
   const validInvIds = userInvs ? userInvs.map(i => i.id) : []
   const trackedInvIds = userInvs ? userInvs.filter(i => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id) : []
+  const phase4InvIds = new Set(userInvs ? userInvs.filter(i => ['RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id) : [])
 
   let rsvps = []
   if (validInvIds.length > 0) {
@@ -620,14 +621,25 @@ export async function getUserStats(userId) {
       // ONLY track stats for invitations that have been sent
       if (trackedInvIds.includes(r.invitation_id)) {
         if (!personRsvps.has(r.invitee_id)) {
-          personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0, confirmed: 0, declined: 0 })
+          personRsvps.set(r.invitee_id, { attending: 0, pending: 0, notAttending: 0, confirmed: 0, declined: 0, hasPhase4Inv: false })
         }
         const s = personRsvps.get(r.invitee_id)
-        if (r.rsvp_status === 'Attending') s.attending++
-        else if (r.rsvp_status === 'Not Attending') s.notAttending++
-        else if (r.rsvp_status === 'Confirmed') s.confirmed++
-        else if (r.rsvp_status === 'Declined') s.declined++
-        else s.pending++
+        const isPhase4 = phase4InvIds.has(r.invitation_id)
+        if (isPhase4) s.hasPhase4Inv = true
+        
+        if (r.rsvp_status === 'Attending') {
+          if (isPhase4) s.attending++
+          else s.confirmed++
+        } else if (r.rsvp_status === 'Not Attending') {
+          if (isPhase4) s.notAttending++
+          else s.declined++
+        } else if (r.rsvp_status === 'Confirmed') {
+          s.confirmed++
+        } else if (r.rsvp_status === 'Declined') {
+          s.declined++
+        } else {
+          s.pending++
+        }
       }
     })
   }
@@ -636,19 +648,34 @@ export async function getUserStats(userId) {
   let attending = 0, notAttending = 0, pendingRsvps = 0
   
   personRsvps.forEach(s => {
-    // Phase 3 Final RSVPs
-    if (s.attending > 0) attending++
-    else if (s.notAttending > 0) notAttending++
-    // Phase 2 Confirmations (they are pending Phase 3)
-    else if (s.confirmed > 0) {
-      confirmed++
-      pendingRsvps++
+    // Phase 4 RSVPs
+    let inPhase4 = false
+    if (s.hasPhase4Inv) {
+      inPhase4 = true
+      if (s.attending > 0) attending++
+      else if (s.notAttending > 0) notAttending++
+      else pendingRsvps++
+    } else {
+      // Catch edge cases where they have attending/notAttending without the flag
+      if (s.attending > 0) {
+        attending++
+        inPhase4 = true
+      } else if (s.notAttending > 0) {
+        notAttending++
+        inPhase4 = true
+      }
     }
-    // Declined in Phase 2
+
+    // Phase 3 Confirmations
+    // A person counts as "Confirmed" if they are currently confirmed OR if they advanced to Phase 4
+    if (s.confirmed > 0 || inPhase4) {
+      confirmed++
+    }
+    // Declined in Phase 3
     else if (s.declined > 0) {
       declined++
     }
-    // Pending Phase 2 entirely
+    // Pending in Phase 3
     else if (s.pending > 0) {
       pendingConfirmations++
     }
@@ -1074,32 +1101,35 @@ export async function submitRsvp(invitationId, rsvpData, isConfirmation = false)
       if (!inviteeId || !eventId) continue;
       
       // Look up the member_id for this invitee
-      const { data: invitee } = await supabase
+      const { data: invitee, error: inviteeErr } = await supabase
         .from('invitees')
         .select('member_id')
         .eq('id', inviteeId)
         .single()
         
+      if (inviteeErr) return { error: inviteeErr.message }
       if (!invitee || !invitee.member_id) continue;
       
       // Look up all invitees that share this member_id
-      const { data: siblingInvitees } = await supabase
+      const { data: siblingInvitees, error: sibErr } = await supabase
         .from('invitees')
         .select('id')
         .eq('member_id', invitee.member_id)
         
+      if (sibErr) return { error: sibErr.message }
       if (!siblingInvitees) continue;
       
       const siblingIds = siblingInvitees.map(s => s.id)
       
       // Update across all sibling invitees
-      const { data } = await supabase
+      const { data, error: updateErr } = await supabase
         .from('invitation_member_events')
         .update({ rsvp_status: rsvp.status })
         .in('invitee_id', siblingIds)
         .eq('event_id', eventId)
         .select('invitation_id')
         
+      if (updateErr) return { error: updateErr.message }
       if (data) {
         data.forEach(row => updatedInvitationIds.add(row.invitation_id))
       }
@@ -1107,10 +1137,11 @@ export async function submitRsvp(invitationId, rsvpData, isConfirmation = false)
     
     // Update all affected invitations status to RSVPed so they know they responded
     if (updatedInvitationIds.size > 0 && !isConfirmation) {
-      await supabase
+      const { error: invError } = await supabase
         .from('invitations')
         .update({ status: 'RSVPed' })
         .in('id', Array.from(updatedInvitationIds))
+      if (invError) return { error: invError.message }
     }
       
     return { success: true }
@@ -1207,13 +1238,25 @@ export async function getConfirmationsByUser(userId) {
     
   if (error) return []
   
-  return confirmations.map(conf => ({
-    ...conf,
-    surname: conf.families?.surname,
-    hof_its: conf.families?.hof_its,
-    recipient_name: Array.isArray(conf.family_members) ? conf.family_members[0]?.full_name : conf.family_members?.full_name,
-    recipient_mobile: Array.isArray(conf.family_members) ? conf.family_members[0]?.mobile : conf.family_members?.mobile,
-  }))
+  // Fetch invitees for this user to map them to the confirmations
+  const { data: invitees } = await supabase
+    .from('invitees')
+    .select('id, full_name, family_id, confirmation_status')
+    .eq('bride_groom_user_id', userId)
+    .eq('selected', true)
+  
+  return confirmations.map(conf => {
+    const confInvitees = invitees ? invitees.filter(i => i.family_id === conf.family_id) : []
+    
+    return {
+      ...conf,
+      surname: conf.families?.surname,
+      hof_its: conf.families?.hof_its,
+      recipient_name: Array.isArray(conf.family_members) ? conf.family_members[0]?.full_name : conf.family_members?.full_name,
+      recipient_mobile: Array.isArray(conf.family_members) ? conf.family_members[0]?.mobile : conf.family_members?.mobile,
+      invitees: confInvitees
+    }
+  })
 }
 
 export async function getPublicConfirmationDetails(confirmationId) {
@@ -1258,16 +1301,18 @@ export async function submitConfirmation(confirmationId, responses) {
   // responses is an array of { id: invitee_id, status: 'Confirmed' | 'Declined' }
   try {
     for (const res of responses) {
-      await supabase
+      const { error: invErr } = await supabase
         .from('invitees')
         .update({ confirmation_status: res.status })
         .eq('id', res.id)
+      if (invErr) return { error: invErr.message }
     }
     
-    await supabase
+    const { error: confErr } = await supabase
       .from('confirmations')
       .update({ status: 'Responded' })
       .eq('id', confirmationId)
+    if (confErr) return { error: confErr.message }
       
     return { success: true }
   } catch (error) {

@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import BrideGroomDashboard from './pages/BrideGroomDashboard'
 import AddInviteePage from './pages/AddInviteePage'
 import SendInvitationPage from './pages/SendInvitationPage'
+import SendConfirmationPage from './pages/SendConfirmationPage'
 import AdminDashboard from './pages/AdminDashboard'
 import TNCDashboard from './pages/TNCDashboard'
 import TNCEventReportsPage from './pages/TNCEventReportsPage'
@@ -34,6 +35,9 @@ export default function App() {
             } />
             <Route path="/dashboard/send-invitation" element={
               <ProtectedRoute roles={['bride', 'groom']}><SendInvitationPage /></ProtectedRoute>
+            } />
+            <Route path="/dashboard/send-confirmation" element={
+              <ProtectedRoute roles={['bride', 'groom']}><SendConfirmationPage /></ProtectedRoute>
             } />
             <Route path="/dashboard/print-roster" element={
               <ProtectedRoute roles={['bride', 'groom']}><PrintRosterPage /></ProtectedRoute>
