@@ -15,6 +15,7 @@ import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
 import TNCExtraThaalsPage from './pages/TNCExtraThaalsPage'
 import ConfirmationPage from './pages/ConfirmationPage'
 import RSVPPage from './pages/RSVPPage'
+import SendRsvpPage from './pages/SendRsvpPage'
 import PrintRosterPage from './pages/PrintRosterPage'
 
 export default function App() {
@@ -41,6 +42,9 @@ export default function App() {
             } />
             <Route path="/dashboard/print-roster" element={
               <ProtectedRoute roles={['bride', 'groom']}><PrintRosterPage /></ProtectedRoute>
+            } />
+            <Route path="/dashboard/send-rsvp" element={
+              <ProtectedRoute roles={['bride', 'groom']}><SendRsvpPage /></ProtectedRoute>
             } />
 
             <Route path="/admin" element={

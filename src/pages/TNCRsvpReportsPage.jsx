@@ -4,7 +4,7 @@ import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
-import { getAdminStats, getTncRsvpData } from '../lib/db'
+import { getAdminStats, getTncRsvpData, getEvents } from '../lib/db'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
@@ -18,18 +18,21 @@ export default function TNCRsvpReportsPage() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
   const [invitees, setInvitees] = useState([])
+  const [allEvents, setAllEvents] = useState([])
   const [filterEvent, setFilterEvent] = useState('')
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
     async function load() {
-      const [s, rsvpData] = await Promise.all([
+      const [s, rsvpData, eventsData] = await Promise.all([
         getAdminStats(), 
-        getTncRsvpData()
+        getTncRsvpData(),
+        getEvents()
       ])
       if (!alive) return
       setStats(s)
+      setAllEvents(eventsData.map(e => e.event_name).sort())
       
       const byPerson = {}
       rsvpData.forEach(r => {
@@ -81,7 +84,7 @@ export default function TNCRsvpReportsPage() {
         <div className="flex items-center gap-2 text-sm text-ink/50 py-10"><Spinner className="h-4 w-4" /> Loading…</div>
       ) : (
           (() => {
-            const allEventNames = Array.from(new Set(invitees.flatMap(i => i.events.map(e => e.name)))).sort()
+            const allEventNames = allEvents
             
             let displayInvitees = invitees
             if (filterEvent) {

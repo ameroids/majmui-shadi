@@ -1,30 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import { Field, Input, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
-  getFamiliesWithInviteesForUser, getEvents, createInvitation,
-  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, createMassFakeInvitations, getUserStats
+  getFamiliesWithInviteesForUser, getEvents,
+  getInvitationsByUser, updateInvitationStatus, getUserStats
 } from '../lib/db'
-import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
+import { buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
-  { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '＋' },
-  { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✎' },
+  { path: '/dashboard/add-invitee', label: 'Add Invitee', icon: '+' },
+  { path: '/dashboard/send-invitation', label: 'Send Invitation', icon: '✉' },
   { path: '/dashboard/send-confirmation', label: 'Confirmations', icon: '✓' },
+  { path: '/dashboard/send-rsvp', label: 'Send RSVPs', icon: '✉' }
 ]
 
-const STEPS = ['Select Family', 'Configure Invitation', 'Preview & Send']
-
-export default function SendInvitationPage() {
+export default function SendRsvpPage() {
   const { user } = useAuth()
   const { showToast } = useToast()
 
@@ -33,8 +31,9 @@ export default function SendInvitationPage() {
   const [invitations, setInvitations] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [wizardOpen, setWizardOpen] = useState(false)
   const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
+
+  const [openedRsvpLinks, setOpenedRsvpLinks] = useState(new Set())
 
   const loadAll = async () => {
     setLoading(true)
@@ -44,55 +43,29 @@ export default function SendInvitationPage() {
       getInvitationsByUser(user.id),
       getUserStats(user.id),
     ])
+    
+    // Only show invitations that have at least one Confirmed (or Attending/Not Attending) member
+    const validRsvpInvitations = inv.filter(i => {
+      // Must be sent in Phase 2
+      if (!['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)) return false
+      // Must have at least one member who reached Phase 3 Confirmations or Phase 4 RSVPs
+      return i.member_events?.some(me => me.rsvp_status === 'Confirmed' || me.rsvp_status === 'Attending' || me.rsvp_status === 'Not Attending')
+    })
+
     setFamilies(fam)
     setEvents(evt)
-    setInvitations(inv)
+    setInvitations(validRsvpInvitations)
     setStats(s)
     setLoading(false)
   }
 
   useEffect(() => { loadAll() }, []) // eslint-disable-line
 
-  const handleOpenWhatsapp = async (invitation) => {
-    if (!invitation.recipient_mobile) {
-      showToast('This family does not have a mobile number saved! Please edit the family to add a mobile number first.', 'error')
+  const handleMarkRsvpSent = async (invitation) => {
+    if (!openedRsvpLinks.has(invitation.id)) {
+      showToast('Please click "Send RSVP Link" to open WhatsApp before marking it as sent.', 'error')
       return
     }
-
-    if (window.Android && window.Android.shareToWhatsApp) {
-      // Use Android native bridge (which can attach images)
-      window.Android.shareToWhatsApp(invitation.recipient_mobile, invitation.generated_message)
-    } else {
-      // Fallback to standard web intent
-      const link = buildWhatsappLink(invitation.recipient_mobile, invitation.generated_message)
-      window.open(link, '_blank', 'noopener,noreferrer')
-    }
-    
-    if (invitation.status === 'Ready') {
-      await updateInvitationStatus(invitation.id, 'WhatsApp Opened')
-      loadAll()
-    }
-  }
-
-  const handleMarkSent = async (invitation) => {
-    await updateInvitationStatus(invitation.id, 'Sent')
-    showToast(`Marked ${invitation.surname} family's invitation as sent.`)
-    loadAll()
-  }
-
-  const handleGenerateInvitationsTest = async () => {
-    setLoading(true)
-    try {
-      await createMassFakeInvitations(user.id)
-      showToast('Successfully mass generated invitations for all uninvited families!', 'success')
-      await loadAll()
-    } catch (e) {
-      showToast('Error generating invitations: ' + e.message, 'error')
-      setLoading(false)
-    }
-  }
-
-  const handleMarkRsvpSent = async (invitation) => {
     await updateInvitationStatus(invitation.id, 'RSVP Sent')
     showToast(`Marked ${invitation.surname} family's RSVP as sent.`)
     loadAll()
@@ -106,6 +79,8 @@ export default function SendInvitationPage() {
 
     const rsvpUrl = `${window.location.origin}/rsvp/${invitation.id}`
     const message = generateRsvpMessage(invitation.recipient_name, rsvpUrl)
+    
+    setOpenedRsvpLinks(prev => new Set([...prev, invitation.id]))
     
     if (window.Android && window.Android.shareToWhatsApp) {
       window.Android.shareToWhatsApp(invitation.recipient_mobile, message)
@@ -124,42 +99,24 @@ export default function SendInvitationPage() {
   })
 
   return (
-    <DashboardLayout navItems={filteredNav} activePath="/dashboard/send-invitation" roleLabel={user.role}>
+    <DashboardLayout navItems={filteredNav} activePath="/dashboard/send-rsvp" roleLabel={user.role}>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="flex-1">
-          <h1 className="font-display text-3xl font-semibold text-emerald-deep">Send Invitation</h1>
+          <h1 className="font-display text-3xl font-semibold text-emerald-deep">Phase 4: Send RSVPs</h1>
           <p className="text-sm text-ink/60 mt-1 max-w-xl">
-            One WhatsApp message per family. Choose a representative to receive it — the
-            message will still name every invited member of that family.
+            Send the final RSVP link to families who confirmed their initial invitation. The link will only show events they confirmed for.
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" className="border border-emerald/20 text-emerald-deep" onClick={handleGenerateInvitationsTest} disabled={loading}>
-            + Mass Invite All Fakes
-          </Button>
-          <Button onClick={() => {
-            if (user.can_send_invitations === false) {
-              setLockedModal({
-                open: true,
-                title: 'Action Locked',
-                message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
-              })
-              return
-            }
-            setWizardOpen(true)
-          }} size="lg">+ New Invitation</Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-ink/50 py-10"><Spinner className="h-4 w-4" /> Loading…</div>
+        <div className="flex items-center gap-2 text-sm text-ink/50 py-10"><Spinner className="h-4 w-4" /> Loading...</div>
       ) : invitations.length === 0 ? (
         <Card className="p-6">
           <EmptyState
             icon="✉"
-            title="No invitations created yet"
-            description="Start a new invitation to pick a family, a representative, and the events they're invited to."
-            action={<Button onClick={() => setWizardOpen(true)}>+ New Invitation</Button>}
+            title="No confirmed families yet"
+            description="When your guests start confirming their Phase 3 invitations, they will appear here so you can send them their final RSVP link."
           />
         </Card>
       ) : (
@@ -188,66 +145,34 @@ export default function SendInvitationPage() {
                     </td>
                     <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
                     <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        if (user.can_send_rsvps === false) {
+                          setLockedModal({
+                            open: true,
+                            title: 'RSVP Phase Locked',
+                            message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                          })
+                          return
+                        }
+                        handleSendRsvp(inv)
+                      }}>
+                        Send RSVP Link
+                      </Button>
+                      
                       {inv.status !== 'RSVP Sent' && (
-                        <Button variant="whatsapp" size="sm" onClick={() => {
-                          if (user.can_send_invitations === false) {
-                            setLockedModal({
-                              open: true,
-                              title: 'Action Locked',
-                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
-                            })
-                            return
-                          }
-                          handleOpenWhatsapp(inv)
-                        }}>
-                          {inv.status === 'Sent' ? 'Reopen' : 'Send on WhatsApp'}
-                        </Button>
-                      )}
-                      {(inv.status !== 'Sent' && inv.status !== 'RSVP Sent') && (
                         <Button variant="outline" size="sm" onClick={() => {
-                          if (user.can_send_invitations === false) {
+                          if (user.can_send_rsvps === false) {
                             setLockedModal({
                               open: true,
-                              title: 'Action Locked',
-                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                              title: 'RSVP Phase Locked',
+                              message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
                             })
                             return
                           }
-                          handleMarkSent(inv)
+                          handleMarkRsvpSent(inv)
                         }}>
-                          Mark Sent
+                          Mark RSVP Sent
                         </Button>
-                      )}
-                      {inv.status === 'Sent' && (
-                        <>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            if (user.can_send_rsvps === false) {
-                              setLockedModal({
-                                open: true,
-                                title: 'RSVP Phase Locked',
-                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                              })
-                              return
-                            }
-                            handleSendRsvp(inv)
-                          }}>
-                            Send RSVP Link
-                          </Button>
-                          
-                          <Button variant="outline" size="sm" onClick={() => {
-                            if (user.can_send_rsvps === false) {
-                              setLockedModal({
-                                open: true,
-                                title: 'RSVP Phase Locked',
-                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                              })
-                              return
-                            }
-                            handleMarkRsvpSent(inv)
-                          }}>
-                            Mark RSVP Sent
-                          </Button>
-                        </>
                       )}
                     </td>
                   </tr>
@@ -258,381 +183,15 @@ export default function SendInvitationPage() {
         </Card>
       )}
 
-      <InvitationWizard
-        open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
-        families={families}
-        events={events}
-        invitations={invitations}
-        userId={user.id}
-        userName={user.display_name}
-        partnerName={user.partner_name}
-        userRole={user.role}
-        user={user}
-        stats={stats}
-        onCreated={loadAll}
-      />
-
-      <Modal 
-        open={lockedModal.open} 
-        onClose={() => setLockedModal({ ...lockedModal, open: false })}
-        title={lockedModal.title}
-        size="sm"
-        footer={
-          <Button onClick={() => setLockedModal({ ...lockedModal, open: false })} className="w-full sm:w-auto">
-            Got it
-          </Button>
-        }
-      >
-        <div className="flex flex-col items-center text-center py-4">
-          <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-3xl mb-4">🔒</div>
-          <p className="text-base text-ink/80">{lockedModal.message}</p>
+      <Modal open={lockedModal.open} onClose={() => setLockedModal({ ...lockedModal, open: false })} title={lockedModal.title}>
+        <div className="p-4 sm:p-6 text-sm text-ink/80 text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <p>{lockedModal.message}</p>
+          <div className="mt-6 flex justify-center">
+            <Button onClick={() => setLockedModal({ ...lockedModal, open: false })}>Okay</Button>
+          </div>
         </div>
       </Modal>
     </DashboardLayout>
-  )
-}
-
-function InvitationWizard({ open, onClose, families, events, invitations, userId, userName, partnerName, userRole, user, stats, onCreated }) {
-  const { showToast } = useToast()
-  const [step, setStep] = useState(0)
-  const [familyId, setFamilyId] = useState('')
-  const [search, setSearch] = useState('')
-  const [selectedMemberEvents, setSelectedMemberEvents] = useState(new Set())
-  const [representativeId, setRepresentativeId] = useState('')
-  const [message, setMessage] = useState('')
-  const [creating, setCreating] = useState(false)
-
-  const family = families.find((f) => f.family_id === familyId)
-
-  useEffect(() => {
-    if (!open) {
-      setStep(0); setFamilyId(''); setSearch(''); setSelectedMemberEvents(new Set())
-      setRepresentativeId(''); setMessage('')
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (family) {
-      const initial = new Set()
-      family.members.forEach(m => {
-        events.forEach(e => initial.add(`${m.id}_${e.id}`))
-      })
-      setSelectedMemberEvents(initial)
-      setRepresentativeId('')
-    }
-  }, [familyId]) // eslint-disable-line
-
-  const filteredFamilies = useMemo(() => {
-    if (!search.trim()) return families
-    return families.filter((f) => f.surname.toLowerCase().includes(search.trim().toLowerCase()))
-  }, [families, search])
-
-  const activeMemberIds = new Set(Array.from(selectedMemberEvents).map(str => str.split('_')[0]))
-  const activeEventIds = new Set(Array.from(selectedMemberEvents).map(str => str.split('_')[1]))
-
-  const activeMembers = family ? family.members.filter(m => activeMemberIds.has(m.id)) : []
-  const representative = activeMembers.find((m) => m.id === representativeId)
-  const activeEvents = events.filter((e) => activeEventIds.has(e.id))
-
-  const toggleMemberEvent = (memberId, eventId) => {
-    setSelectedMemberEvents((prev) => {
-      const next = new Set(prev)
-      const key = `${memberId}_${eventId}`
-      if (next.has(key)) {
-        next.delete(key)
-        // If this was the last event for the representative, clear rep
-        const stillHasEvents = Array.from(next).some(k => k.startsWith(`${memberId}_`))
-        if (!stillHasEvents && representativeId === memberId) setRepresentativeId('')
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }
-
-  const goToPreview = () => {
-    const [brideName, groomName] = [
-      userRole === 'bride' ? userName : partnerName,
-      userRole === 'groom' ? userName : partnerName,
-    ]
-    const parsedMemberEvents = Array.from(selectedMemberEvents).map(str => ({
-      member_id: str.split('_')[0],
-      event_id: str.split('_')[1]
-    }))
-    const msg = generateMessage({
-      recipientName: representative.full_name,
-      activeMembers,
-      events: activeEvents,
-      memberEvents: parsedMemberEvents,
-      brideName,
-      groomName,
-      senderName: userName,
-    })
-    setMessage(msg)
-    setStep(2)
-  }
-
-  const canProceed = [
-    Boolean(familyId),
-    Boolean(representativeId) && activeMembers.length > 0 && activeEvents.length > 0,
-    true,
-  ][step]
-
-  const handleGenerateAndCreate = async () => {
-    setCreating(true)
-    try {
-      const parsedMemberEvents = Array.from(selectedMemberEvents).map(str => ({
-        member_id: str.split('_')[0],
-        event_id: str.split('_')[1]
-      }))
-      const record = await createInvitation(userId, {
-        family_id: family.family_id,
-        surname: family.surname,
-        hof_its: family.hof_its,
-        recipient: representative,
-        member_events: parsedMemberEvents,
-        message,
-      })
-      
-      // Replace placeholder with the real confirmation link
-      const confirmUrl = `${window.location.origin}/confirm/${record.id}`
-      const finalMessage = message.replace('[CONFIRMATION_LINK_PLACEHOLDER]', confirmUrl)
-      
-      // Update the message in the DB
-      await updateInvitationMessage(record.id, finalMessage)
-      
-      buildLinkAndOpen(record.recipient_mobile, finalMessage)
-      await updateInvitationStatus(record.id, 'WhatsApp Opened')
-      showToast(`Invitation ready for the ${family.surname} family — WhatsApp opened.`)
-      onCreated()
-      onClose()
-    } catch (err) {
-      console.error(err)
-      showToast(`Error creating invitation: ${err.message || 'Network error'}`, 'error')
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="New Invitation" size="lg" footer={<WizardFooter />}>
-      <StepIndicator step={step} />
-
-      {step === 0 && (
-        <div>
-          <Field label="Select Family">
-            <Input placeholder="Search by surname…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </Field>
-          <div className="mt-4 max-h-72 overflow-y-auto space-y-2">
-            {filteredFamilies.length === 0 && (
-              <p className="text-sm text-ink/50 py-6 text-center">No families match "{search}". Add invitees first from the Add Invitee page.</p>
-            )}
-            {filteredFamilies.map((f) => {
-              const hasInvitation = invitations.some(inv => inv.family_id === f.family_id)
-              return (
-              <button
-                key={f.family_id}
-                onClick={() => !hasInvitation && setFamilyId(f.family_id)}
-                disabled={hasInvitation}
-                className={`w-full text-left rounded-lg border px-4 py-3 transition tap-target ${
-                  hasInvitation ? 'opacity-50 cursor-not-allowed bg-ivory-soft' :
-                  familyId === f.family_id ? 'border-gold bg-gold-light/30' : 'border-ivory-line hover:border-emerald'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-emerald-deep">
-                      {f.surname}
-                      {f.members.find(m => m.mobile?.trim()) && (
-                        <span className="text-sm font-normal text-ink/70 ml-1.5">
-                          ({f.members.find(m => m.mobile?.trim()).full_name})
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {hasInvitation && <Badge tone="default">Created</Badge>}
-                    <span className="text-xs text-ink/45">{f.members.length} member{f.members.length !== 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-              </button>
-            )})}
-          </div>
-        </div>
-      )}
-
-      {step === 1 && family && (
-        <div>
-          <p className="text-sm text-ink/60 mb-3">
-            Check the boxes to invite specific members of the <strong>{family.surname}</strong> family to specific events, then mark one as the WhatsApp representative.
-          </p>
-          <div className="overflow-x-auto border border-ivory-line rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-ivory-soft border-b border-ivory-line">
-                <tr>
-                  <th className="py-3 px-4 text-left font-semibold text-ink/70">Member</th>
-                  <th className="py-3 px-4 text-center font-semibold text-ink/70">Representative</th>
-                  {events.map(e => (
-                    <th key={e.id} className="py-3 px-4 text-center font-semibold text-ink/70 whitespace-nowrap">
-                      {e.event_name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ivory-line">
-                {family.members.map(m => (
-                  <tr key={m.id} className="hover:bg-ivory-soft/50 transition">
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-ink">{m.full_name}</div>
-                      <div className="text-xs font-mono text-ink/40">{m.mobile}</div>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {m.mobile?.trim() ? (
-                        <input
-                          type="radio"
-                          name="representative"
-                          checked={representativeId === m.id}
-                          onChange={() => setRepresentativeId(m.id)}
-                          disabled={!activeMemberIds.has(m.id)}
-                          className="accent-emerald-deep cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                        />
-                      ) : (
-                        <span className="text-[10px] text-ink/30 uppercase font-semibold" title="Mobile number required to be a representative">No Mobile</span>
-                      )}
-                    </td>
-                    {events.map(e => (
-                      <td key={e.id} className="py-3 px-4 text-center">
-                        <Checkbox
-                          id={`grid-${m.id}-${e.id}`}
-                          checked={selectedMemberEvents.has(`${m.id}_${e.id}`)}
-                          onChange={() => toggleMemberEvent(m.id, e.id)}
-                          label=""
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            {activeMembers.length > 0 && !representativeId ? (
-              <p className="text-sm font-semibold text-rose-600">Select one representative to receive the WhatsApp message.</p>
-            ) : <div/>}
-            <div className={`text-sm font-semibold px-3 py-1.5 rounded-md ${
-              selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0) > (280 + ((stats?.extra_thaals || 0) * 8)) 
-              ? 'text-rose-700 bg-rose-100' 
-              : 'text-emerald-deep bg-emerald-soft'
-            }`}>
-              {selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0)} / {280 + ((stats?.extra_thaals || 0) * 8)}
-            </div>
-          </div>
-          {selectedMemberEvents.size + (stats?.totalSeatsConsumed || 0) > (280 + ((stats?.extra_thaals || 0) * 8)) && (
-            <div className="mt-4 bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg text-sm flex items-start gap-2">
-              <span className="text-rose-500 font-bold">⚠</span>
-              <div>
-                <strong>Quota Exceeded:</strong> You have exceeded the {280 + ((stats?.extra_thaals || 0) * 8)} person limit. Adding extra invitees will charge ₹1,800 per thaal.
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 2 && (
-        <PreviewStep
-          representative={representative}
-          message={message}
-          setMessage={setMessage}
-          onSend={handleGenerateAndCreate}
-          creating={creating}
-        />
-      )}
-    </Modal>
-  )
-
-  function buildLinkAndOpen(mobile, msg) {
-    if (window.Android && window.Android.shareToWhatsApp) {
-      window.Android.shareToWhatsApp(mobile, msg)
-      return null
-    } else {
-      const link = buildWhatsappLink(mobile, msg)
-      window.open(link, '_blank', 'noopener,noreferrer')
-      return link
-    }
-  }
-
-  function WizardFooter() {
-    if (step === 2) return null
-    return (
-      <>
-        {step > 0 && <Button variant="ghost" onClick={() => setStep((s) => s - 1)}>Back</Button>}
-        {step === 0 && (
-          <Button disabled={!canProceed} onClick={() => setStep(1)}>Continue</Button>
-        )}
-        {step === 1 && (
-          <Button disabled={!canProceed} onClick={goToPreview}>Generate Invitation</Button>
-        )}
-      </>
-    )
-  }
-}
-
-function StepIndicator({ step }) {
-  return (
-    <div className="flex items-center gap-2 mb-6 flex-wrap">
-      {STEPS.map((label, i) => (
-        <div key={label} className="flex items-center gap-2">
-          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-            i === step ? 'bg-emerald-deep text-ivory' : i < step ? 'bg-gold text-emerald-deep' : 'bg-ivory-line text-ink/40'
-          }`}>
-            {i < step ? '✓' : i + 1}
-          </div>
-          <span className={`text-xs font-semibold ${i === step ? 'text-emerald-deep' : 'text-ink/40'}`}>{label}</span>
-          {i < STEPS.length - 1 && <span className="w-4 h-px bg-ivory-line" />}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function PreviewStep({ representative, message, setMessage, onSend, creating }) {
-  const [editing, setEditing] = useState(false)
-
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-1">WhatsApp Invitation Preview</p>
-      <div className="rounded-xl border border-ivory-line overflow-hidden">
-        <div className="bg-ivory-soft px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-ink/45">To</p>
-            <p className="font-semibold text-emerald-deep">{representative?.full_name || 'Loading...'} · <span className="font-mono text-sm">{representative?.mobile}</span></p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
-            {editing ? 'Done editing' : 'Edit Message'}
-          </Button>
-        </div>
-        <div className="p-4 bg-white">
-          {editing ? (
-            <textarea
-              className="w-full min-h-[220px] text-sm rounded-lg border border-ivory-line p-3 focus:border-gold focus:ring-1 focus:ring-gold outline-none font-body"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          ) : (
-            <pre className="whitespace-pre-wrap font-body text-sm text-ink leading-relaxed">{message}</pre>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-3 mt-5">
-        <Button variant="whatsapp" size="lg" onClick={onSend} loading={creating}>
-          Send on WhatsApp
-        </Button>
-      </div>
-      <p className="text-xs text-ink/40 mt-3">
-        This opens WhatsApp with the number and message pre-filled. You'll still need to press WhatsApp's own Send button.
-      </p>
-    </div>
   )
 }
