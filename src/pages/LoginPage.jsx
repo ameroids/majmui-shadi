@@ -105,7 +105,7 @@ export default function LoginPage() {
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={activeTab === 'bridegroom' ? 'Dulha01 or Dulhan01' : activeTab === 'admin' ? 'admin' : activeTab === 'tnc' ? 'tnc' : 'accounts1'}
+                  placeholder="Enter your username"
                   autoComplete="username"
                   className="bg-white"
                 />
