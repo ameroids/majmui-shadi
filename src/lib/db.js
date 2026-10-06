@@ -30,14 +30,16 @@ export async function authenticate(username, password, expectedRoles) {
     
     // Fetch partner name for WhatsApp template if bride/groom
     if (safeUser.role === 'bride' || safeUser.role === 'groom') {
-      const match = safeUser.username.match(/^(dulha|dulhan)(\d+)$/i)
+      const match = safeUser.username.match(/^(\d+)(.*)$/i)
       if (match) {
-        const prefix = match[1].toLowerCase() === 'dulha' ? 'Dulhan' : 'Dulha'
-        const partnerUsername = `${prefix}${match[2]}`
+        const pairNumber = match[1]
+        const partnerRole = safeUser.role === 'groom' ? 'bride' : 'groom'
+        
         const { data: partner } = await supabase
           .from('users')
           .select('display_name')
-          .ilike('username', partnerUsername)
+          .eq('role', partnerRole)
+          .like('username', `${pairNumber}%`)
           .maybeSingle()
           
         if (partner) {
@@ -104,17 +106,17 @@ export async function searchFamiliesByName(nameQuery) {
   
   const searchStr = `%${nameQuery.trim()}%`
 
-  // 1. Search families by surname
+  // 1. Search families by surname or hof_its
   const { data: surnameMatches } = await supabase
     .from('families')
     .select('id')
-    .ilike('surname', searchStr)
+    .or(`surname.ilike.${searchStr},hof_its.ilike.${searchStr}`)
 
-  // 2. Search members by full_name
+  // 2. Search members by full_name or member_its
   const { data: memberMatches } = await supabase
     .from('family_members')
     .select('family_id')
-    .ilike('full_name', searchStr)
+    .or(`full_name.ilike.${searchStr},member_its.ilike.${searchStr}`)
 
   // 3. Combine family IDs
   const familyIds = new Set()
@@ -327,7 +329,7 @@ export async function getFamiliesWithInviteesForUser(userId) {
     }
     byFamily.get(invitee.family_id).members.push(invitee)
   })
-  return Array.from(byFamily.values()).sort((a, b) => a.surname.localeCompare(b.surname))
+  return Array.from(byFamily.values()).sort((a, b) => (a.surname || '').localeCompare(b.surname || ''))
 }
 
 // --------------------------- Invitations -------------------------------------
@@ -489,7 +491,7 @@ export async function getAllInvitees() {
 export async function getBridesAndGrooms() {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, username, display_name, role, extra_thaals')
+    .select('id, username, display_name, role, extra_thaals, total_amount_due, amount_collected, payment_method, payment_date, installments')
     .in('role', ['bride', 'groom'])
     .order('display_name', { ascending: true })
   

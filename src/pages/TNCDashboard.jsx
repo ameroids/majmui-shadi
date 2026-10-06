@@ -28,16 +28,21 @@ export default function TNCDashboard() {
   useEffect(() => {
     let alive = true
     async function load() {
-      const [s, fam, inv, invt, evts] = await Promise.all([
-        getAdminStats(), 
-        getAllFamilies(), 
-        getAllInvitees(), 
-        getAllInvitations(),
-        getEvents()
-      ])
-      if (!alive) return
-      setStats(s); setFamilies(fam); setInvitees(inv); setInvitations(invt); setEvents(evts)
-      setLoading(false)
+      try {
+        const [s, fam, inv, invt, evts] = await Promise.all([
+          getAdminStats(), 
+          getAllFamilies(), 
+          getAllInvitees(), 
+          getAllInvitations(),
+          getEvents()
+        ])
+        if (!alive) return
+        setStats(s); setFamilies(fam); setInvitees(inv); setInvitations(invt); setEvents(evts)
+      } catch (err) {
+        console.error('Error loading TNC data:', err)
+      } finally {
+        if (alive) setLoading(false)
+      }
     }
     load()
     return () => { alive = false }
@@ -45,10 +50,10 @@ export default function TNCDashboard() {
 
   const q = query.trim().toLowerCase()
   const matchedFamilies = q
-    ? families.filter((f) => f.surname.toLowerCase().includes(q) || f.members.some((m) => m.mobile?.includes(q) || m.full_name.toLowerCase().includes(q)))
+    ? families.filter((f) => (f.surname || '').toLowerCase().includes(q) || f.members.some((m) => (m.mobile || '').includes(q) || (m.full_name || '').toLowerCase().includes(q)))
     : []
   const matchedInvitations = q
-    ? invitations.filter((i) => i.surname.toLowerCase().includes(q) || i.recipient_mobile.includes(q))
+    ? invitations.filter((i) => (i.surname || '').toLowerCase().includes(q) || (i.recipient_mobile || '').includes(q))
     : []
 
   return (
@@ -144,7 +149,7 @@ export default function TNCDashboard() {
 
             {(() => {
               const displayInvitations = filterEventId 
-                ? invitations.filter(inv => inv.event_ids.includes(filterEventId))
+                ? invitations.filter(inv => inv.event_ids.some(id => String(id) === String(filterEventId)))
                 : invitations;
 
               // Calculate exact total people invited for the current filtered view
@@ -152,7 +157,7 @@ export default function TNCDashboard() {
                 if (filterEventId) {
                   const uniqueForEvent = new Set(
                     (inv.member_events || [])
-                      .filter(me => me.events?.id === filterEventId)
+                      .filter(me => String(me.events?.id) === String(filterEventId))
                       .map(me => me.invitees?.id)
                   );
                   return sum + uniqueForEvent.size;
@@ -177,7 +182,7 @@ export default function TNCDashboard() {
                       <tbody>
                         {displayInvitations.map((i) => {
                           const memberCount = filterEventId 
-                            ? new Set((i.member_events || []).filter(me => me.events?.id === filterEventId).map(me => me.invitees?.id)).size
+                            ? new Set((i.member_events || []).filter(me => String(me.events?.id) === String(filterEventId)).map(me => me.invitees?.id)).size
                             : i.invitee_ids.length;
                           
                           if (memberCount === 0) return null;

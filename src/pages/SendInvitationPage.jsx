@@ -142,9 +142,6 @@ export default function SendInvitationPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" className="border border-emerald/20 text-emerald-deep" onClick={handleGenerateInvitationsTest} disabled={loading}>
-            + Mass Invite All Fakes
-          </Button>
           <Button onClick={() => {
             if (user.can_send_invitations === false) {
               setLockedModal({

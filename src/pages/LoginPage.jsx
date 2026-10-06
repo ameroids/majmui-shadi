@@ -13,13 +13,9 @@ const TABS = [
   { key: 'bridegroom', label: 'Bride / Groom', roles: ['bride', 'groom'] },
   { key: 'admin', label: 'Admin', roles: ['admin'] },
   { key: 'tnc', label: 'TNC', roles: ['tnc'] },
+  { key: 'accounts', label: 'Accounts', roles: ['accounts'] },
 ]
 
-const DEMO_HINTS = {
-  bridegroom: [{ label: 'Bride', value: 'Dulhan01 / password123' }, { label: 'Groom', value: 'Dulha01 / password123' }],
-  admin: [{ label: 'Admin', value: 'admin / admin123' }],
-  tnc: [{ label: 'TNC', value: 'tnc / tnc123' }],
-}
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('bridegroom')
@@ -52,13 +48,7 @@ export default function LoginPage() {
     if (user.role === 'bride' || user.role === 'groom') navigate('/dashboard')
     if (user.role === 'admin') navigate('/admin')
     if (user.role === 'tnc') navigate('/tnc')
-  }
-
-  const fillDemo = (value) => {
-    const [u, p] = value.split(' / ')
-    setUsername(u)
-    setPassword(p)
-    setError('')
+    if (user.role === 'accounts') navigate('/accounts')
   }
 
   return (
@@ -93,7 +83,7 @@ export default function LoginPage() {
             <h1 className="font-display text-3xl font-semibold text-emerald-deep tracking-tight">Sign in</h1>
             <p className="text-sm text-ink/60 mt-2 font-medium">Choose your account type to continue.</p>
 
-            <div className="mt-8 grid grid-cols-3 gap-1.5 bg-ivory-soft/80 rounded-xl p-1.5 border border-ivory-line/50">
+            <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-ivory-soft/80 rounded-xl p-1.5 border border-ivory-line/50">
               {TABS.map((t) => (
                 <button
                   key={t.key}
@@ -115,7 +105,7 @@ export default function LoginPage() {
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={activeTab === 'bridegroom' ? 'Dulha01 or Dulhan01' : activeTab === 'admin' ? 'admin' : 'tnc'}
+                  placeholder={activeTab === 'bridegroom' ? 'Dulha01 or Dulhan01' : activeTab === 'admin' ? 'admin' : activeTab === 'tnc' ? 'tnc' : 'accounts1'}
                   autoComplete="username"
                   className="bg-white"
                 />
@@ -138,28 +128,7 @@ export default function LoginPage() {
               </div>
             </form>
 
-            <div className="mt-8 rounded-xl bg-ivory-soft/50 border border-ivory-line/60 px-5 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-deep/70 mb-3">Demo credentials</p>
-              <div className="space-y-2">
-                {DEMO_HINTS[activeTab].map((hint) => (
-                  <button
-                    type="button"
-                    key={hint.label}
-                    onClick={() => fillDemo(hint.value)}
-                    className="w-full flex items-center justify-between text-xs text-ink/70 hover:text-emerald-deep transition group tap-target py-1"
-                  >
-                    <span className="font-medium">{hint.label}</span>
-                    <span className="font-mono text-[11px] bg-white border border-ivory-line/80 shadow-sm rounded px-2 py-1 group-hover:border-gold/50 group-hover:text-emerald-deep transition-colors">
-                      {hint.value}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </Card>
-          <p className="text-center text-xs text-ink/40 mt-8 font-medium">
-            Demo credentials only — real deployments authenticate through Supabase.
-          </p>
         </div>
       </div>
     </div>

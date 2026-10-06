@@ -282,9 +282,6 @@ export default function AddInviteePage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="ghost" className="border border-emerald/20 text-emerald-deep" onClick={handleMassTest} disabled={saving}>
-            + Generate 50 Fakes
-          </Button>
           <Button onClick={() => setShowManualForm(true)}>+ Add Custom Invitee</Button>
           {extraThaals > 0 && (
             <div className="bg-gold-light/20 px-4 py-3 rounded-lg border border-gold/40 text-center min-w-[100px]">
@@ -326,7 +323,12 @@ export default function AddInviteePage() {
             <h3 className="text-sm font-semibold text-emerald-deep mb-2">Search Results:</h3>
             {families.map((fam) => {
               const q = searchQuery.trim().toLowerCase()
-              const matchedMembers = fam.members.filter(m => m.full_name.toLowerCase().includes(q) || m.mobile?.includes(q))
+              const matchedMembers = fam.members.filter(m => 
+                m.full_name.toLowerCase().includes(q) || 
+                m.mobile?.includes(q) || 
+                m.member_its?.includes(q) || 
+                fam.hof_its?.includes(q)
+              )
               
               const displayTitle = matchedMembers.length > 0 
                 ? matchedMembers.map(m => m.full_name).join(', ') 

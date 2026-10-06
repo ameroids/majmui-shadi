@@ -18,6 +18,8 @@ import RSVPPage from './pages/RSVPPage'
 import SendRsvpPage from './pages/SendRsvpPage'
 import PrintRosterPage from './pages/PrintRosterPage'
 
+import AccountsDashboard from './pages/AccountsDashboard'
+
 export default function App() {
   return (
     <AuthProvider>
@@ -80,6 +82,10 @@ export default function App() {
             } />
             <Route path="/tnc/thaals" element={
               <ProtectedRoute roles={['tnc', 'admin']}><TNCExtraThaalsPage /></ProtectedRoute>
+            } />
+
+            <Route path="/accounts" element={
+              <ProtectedRoute roles={['accounts', 'admin']}><AccountsDashboard /></ProtectedRoute>
             } />
 
             <Route path="*" element={<Navigate to="/" replace />} />
