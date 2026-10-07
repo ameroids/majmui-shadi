@@ -4,6 +4,7 @@ import { getPublicInvitationDetails, submitRsvp, getGlobalRsvpStatus } from '../
 import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
+import ArchMotif from '../components/ArchMotif'
 
 export default function RSVPPage() {
   const { id } = useParams()
@@ -15,6 +16,15 @@ export default function RSVPPage() {
   
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
+  
+  const getCardImagePath = (inv) => {
+    if (!inv?.invited_by_username) return null
+    const match = inv.invited_by_username.match(/^(\d+)/)
+    if (!match) return null
+    const prefix = inv.invited_by_role === 'bride' ? 'B' : 'G'
+    return `/cards/${prefix}${match[1]}.jpg`
+  }
+
   
   // State to track responses: { [inviteeId]: 'Attending' | 'Not Attending' }
   const [responses, setResponses] = useState({})
@@ -161,24 +171,29 @@ export default function RSVPPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-2xl">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        {invitation && getCardImagePath(invitation) && (
+          <img src={getCardImagePath(invitation)} alt="Invitation Card" className="w-full h-auto" onError={(e) => e.target.style.display = 'none'} />
+        )}
         
         {/* Header Section */}
-        <div className="bg-emerald-soft/30 p-8 text-center border-b border-ivory-line">
-          <div className="flex justify-center mb-6">
-            <Logo className="h-12 w-auto" />
-          </div>
-          <h1 className="text-3xl font-display text-emerald-deep mb-2">You're Invited!</h1>
-          {invitation?.invited_by && (
-            <p className="text-ink/70 text-lg">
-              Invited by <span className="font-medium text-ink">{invitation.invited_by}</span>
+        <div className="bg-white/50 px-8 py-10 text-center relative overflow-hidden border-t-2 border-gold/10">
+          <h1 className="text-3xl font-display font-semibold text-emerald-deep relative z-10">You're Invited!</h1>
+          {invitation?.surname && (
+            <p className="text-ink/70 mt-2 text-lg relative z-10 font-medium">
+              The {invitation.surname} Family
             </p>
           )}
-          {invitation?.surname && (
-            <div className="mt-4 text-sm text-gray-500 uppercase tracking-widest font-semibold">
-              {invitation.surname} Family
-            </div>
+          {invitation?.invited_by && (
+            <p className="text-ink/50 text-sm mt-3 relative z-10 tracking-wide">
+              INVITED BY: <span className="font-semibold text-emerald-deep/80">{invitation.invited_by}</span>
+            </p>
           )}
+          <div className="mt-8 flex justify-center opacity-70">
+            <ArchMotif color="#BCA16B" height={16} />
+          </div>
         </div>
 
         {/* Form Section */}
@@ -284,7 +299,7 @@ export default function RSVPPage() {
             </div>
           </form>
         </div>
-        
+        </div>
       </div>
       
       <div className="mt-8 text-center text-sm text-gray-400">

@@ -4,6 +4,7 @@ import { getPublicInvitationDetails, submitRsvp } from '../lib/db'
 import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
+import ArchMotif from '../components/ArchMotif'
 
 export default function ConfirmationPage() {
   const { id } = useParams()
@@ -14,6 +15,14 @@ export default function ConfirmationPage() {
   
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
+  
+  const getCardImagePath = (inv) => {
+    if (!inv?.invited_by_username) return null
+    const match = inv.invited_by_username.match(/^(\d+)/)
+    if (!match) return null
+    const prefix = inv.invited_by_role === 'bride' ? 'B' : 'G'
+    return `/cards/${prefix}${match[1]}.jpg`
+  }
   
   // State to track responses: { [junction_id]: 'Attending' | 'Not Attending' }
   const [responses, setResponses] = useState({})
@@ -159,17 +168,23 @@ export default function ConfirmationPage() {
         </div>
         
         <div className="bg-white rounded-2xl shadow-xl border border-ivory-line overflow-hidden">
-          <div className="bg-emerald-deep px-8 py-10 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] mix-blend-overlay"></div>
-            <h1 className="text-3xl font-display font-bold text-gold relative z-10">Attendance Confirmation</h1>
-            <p className="text-ivory/80 mt-2 text-lg relative z-10">
+          {invitation && getCardImagePath(invitation) && (
+            <img src={getCardImagePath(invitation)} alt="Invitation Card" className="w-full h-auto" onError={(e) => e.target.style.display = 'none'} />
+          )}
+          
+          <div className="bg-white/50 px-8 py-10 text-center relative overflow-hidden border-t-2 border-gold/10">
+            <h1 className="text-3xl font-display font-semibold text-emerald-deep relative z-10">Attendance Confirmation</h1>
+            <p className="text-ink/70 mt-2 text-lg relative z-10 font-medium">
               The {invitation.surname} Family
             </p>
             {invitation.invited_by && (
-              <p className="text-ivory/60 text-sm mt-4 relative z-10">
-                Invited by: {invitation.invited_by}
+              <p className="text-ink/50 text-sm mt-3 relative z-10 tracking-wide">
+                INVITED BY: <span className="font-semibold text-emerald-deep/80">{invitation.invited_by}</span>
               </p>
             )}
+            <div className="mt-8 flex justify-center opacity-70">
+              <ArchMotif color="#BCA16B" height={16} />
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8">

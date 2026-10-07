@@ -1008,7 +1008,7 @@ export async function getPublicInvitationDetails(invitationId) {
       id,
       status,
       families (surname, hof_its),
-      users (display_name),
+      users (username, role, display_name),
       invitation_member_events (
         rsvp_status,
         events (id, event_name),
@@ -1086,7 +1086,9 @@ export async function getPublicInvitationDetails(invitationId) {
       id: inv.id,
       status: inv.status,
       surname: inv.families?.surname,
-      invited_by: inv.users?.display_name
+      invited_by: inv.users?.display_name,
+      invited_by_username: inv.users?.username,
+      invited_by_role: inv.users?.role
     },
     invitees: Array.from(uniqueInviteesMap.values())
   }

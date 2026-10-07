@@ -9,16 +9,8 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authenticate } from '../lib/db'
 
-const TABS = [
-  { key: 'bridegroom', label: 'Bride / Groom', roles: ['bride', 'groom'] },
-  { key: 'admin', label: 'Admin', roles: ['admin'] },
-  { key: 'tnc', label: 'TNC', roles: ['tnc'] },
-  { key: 'accounts', label: 'Accounts', roles: ['accounts'] },
-]
-
 
 export default function LoginPage() {
-  const [activeTab, setActiveTab] = useState('bridegroom')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -27,7 +19,6 @@ export default function LoginPage() {
   const { showToast } = useToast()
   const navigate = useNavigate()
 
-  const tab = TABS.find((t) => t.key === activeTab)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -37,7 +28,7 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    const { user, error: authError } = await authenticate(username, password, tab.roles)
+    const { user, error: authError } = await authenticate(username, password)
     setLoading(false)
     if (authError || !user) {
       setError(authError || 'Something went wrong. Please try again.')
@@ -81,24 +72,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md relative z-10">
           <Card className="p-7 sm:p-10 shadow-2xl shadow-emerald-deep/5 border border-white/60 bg-white/90 backdrop-blur-md">
             <h1 className="font-display text-3xl font-semibold text-emerald-deep tracking-tight">Sign in</h1>
-            <p className="text-sm text-ink/60 mt-2 font-medium">Choose your account type to continue.</p>
-
-            <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-ivory-soft/80 rounded-xl p-1.5 border border-ivory-line/50">
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => {
-                    setActiveTab(t.key)
-                    setError('')
-                  }}
-                  className={`text-xs sm:text-sm font-semibold py-2.5 rounded-lg transition tap-target ${
-                    activeTab === t.key ? 'bg-emerald-deep text-ivory shadow-md' : 'text-ink/60 hover:text-emerald-deep hover:bg-white/50'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            <p className="text-sm text-ink/60 mt-2 font-medium">Enter your credentials to continue.</p>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <Field label="Username" required>
