@@ -1,12 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CardCarousel({ images }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   const minSwipeDistance = 50;
+
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+
+    let intervalId;
+    if (!isHovered) {
+      intervalId = setInterval(() => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+      }, 5000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [images, isHovered]);
 
   const handleTouchStart = (e) => {
     setTouchEnd(null);
@@ -59,6 +75,8 @@ export default function CardCarousel({ images }) {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div
         className="flex transition-transform duration-700 ease-in-out"
