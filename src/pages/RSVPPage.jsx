@@ -5,6 +5,7 @@ import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
 import ArchMotif from '../components/ArchMotif'
+import CardCarousel from '../components/CardCarousel'
 
 export default function RSVPPage() {
   const { id } = useParams()
@@ -174,10 +175,14 @@ export default function RSVPPage() {
       <div className="w-full max-w-2xl">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         
-        {invitation && getCardImagePath(invitation) && (
-          <img src={getCardImagePath(invitation)} alt="Invitation Card" className="w-full h-auto" onError={(e) => e.target.style.display = 'none'} />
+        {invitation && (
+          <CardCarousel 
+            images={[
+              getCardImagePath(invitation), 
+              '/cards/Card2.jpg'
+            ].filter(Boolean)} 
+          />
         )}
-        
         {/* Header Section */}
         <div className="bg-white/50 px-8 py-10 text-center relative overflow-hidden border-t-2 border-gold/10">
           <h1 className="text-3xl font-display font-semibold text-emerald-deep relative z-10">You're Invited!</h1>

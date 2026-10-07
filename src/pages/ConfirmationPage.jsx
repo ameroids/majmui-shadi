@@ -5,6 +5,7 @@ import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
 import ArchMotif from '../components/ArchMotif'
+import CardCarousel from '../components/CardCarousel'
 
 export default function ConfirmationPage() {
   const { id } = useParams()
@@ -168,8 +169,13 @@ export default function ConfirmationPage() {
         </div>
         
         <div className="bg-white rounded-2xl shadow-xl border border-ivory-line overflow-hidden">
-          {invitation && getCardImagePath(invitation) && (
-            <img src={getCardImagePath(invitation)} alt="Invitation Card" className="w-full h-auto" onError={(e) => e.target.style.display = 'none'} />
+          {invitation && (
+            <CardCarousel 
+              images={[
+                getCardImagePath(invitation), 
+                '/cards/Card2.jpg'
+              ].filter(Boolean)} 
+            />
           )}
           
           <div className="bg-white/50 px-8 py-10 text-center relative overflow-hidden border-t-2 border-gold/10">
