@@ -3,6 +3,33 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CardCarousel({ images }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      goToNext();
+    }
+    if (isRightSwipe) {
+      goToPrev();
+    }
+  };
 
   const goToNext = () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
@@ -27,7 +54,12 @@ export default function CardCarousel({ images }) {
   }
 
   return (
-    <div className="relative w-full overflow-hidden group bg-gray-50">
+    <div 
+      className="relative w-full overflow-hidden group bg-gray-50"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div
         className="flex transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
