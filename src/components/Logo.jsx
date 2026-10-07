@@ -1,9 +1,9 @@
-export default function Logo({ tone = 'dark', size = 'md' }) {
+export default function Logo({ tone = 'dark', size = 'md', className = '' }) {
   const color = tone === 'light' ? '#FAF6EF' : '#0F3630'
   const accent = '#C9A24B'
   const textSize = size === 'lg' ? 'text-3xl sm:text-4xl' : 'text-xl'
   return (
-    <div className="flex items-center gap-2 select-none">
+    <div className={`flex items-center gap-2 select-none ${className}`}>
       <svg width={size === 'lg' ? 36 : 28} height={size === 'lg' ? 36 : 28} viewBox="0 0 32 32" fill="none">
         <circle cx="12.5" cy="16" r="7.5" stroke={accent} strokeWidth="1.5" />
         <circle cx="19.5" cy="16" r="7.5" stroke={accent} strokeWidth="1.5" />

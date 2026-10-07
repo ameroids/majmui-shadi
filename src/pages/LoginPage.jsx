@@ -45,23 +45,56 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Decorative brand panel */}
-      <div className="relative bg-emerald-deep text-ivory lg:w-[44%] px-6 sm:px-10 py-12 lg:py-0 flex flex-col justify-center overflow-hidden">
+      <div className="relative bg-emerald-deep text-ivory lg:w-[44%] px-6 sm:px-10 py-12 lg:py-0 flex flex-col justify-center items-center overflow-hidden text-center">
         <div className="absolute inset-0 paper-texture opacity-[0.06]" />
-        <div className="relative w-full max-w-md mx-auto lg:mx-0">
-          <Logo tone="light" size="lg" />
-          <p className="mt-8 font-display text-3xl sm:text-4xl leading-tight text-gold-light tracking-tight">
-            Every family,<br className="hidden sm:block" /> personally invited.
-          </p>
-          <div className="mt-8 pl-5 border-l-2 border-gold/40">
-            <p className="font-serif italic text-ivory/90 text-xl sm:text-2xl leading-relaxed">
-              "Two souls but a single thought; two hearts that beat as one."
-            </p>
-            <p className="text-xs text-gold-light/60 uppercase tracking-[0.2em] mt-3 font-semibold">
-              John Keats
-            </p>
+        
+        {/* Animated Geometric Background Circles */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex items-center justify-center pointer-events-none opacity-40">
+          <div className="absolute w-[160%] sm:w-[130%] aspect-square rounded-full border border-gold/30 border-dashed animate-spin" style={{ animationDuration: '100s' }} />
+          <div className="absolute w-[140%] sm:w-[110%] aspect-square rounded-full border border-gold/20 animate-spin" style={{ animationDuration: '80s', animationDirection: 'reverse' }} />
+          <div className="absolute w-[120%] sm:w-[90%] aspect-square rounded-full border-2 border-gold/40 border-dotted animate-spin" style={{ animationDuration: '140s' }} />
+          {/* Subtle glowing center */}
+          <div className="absolute w-[80%] aspect-square rounded-full bg-gold/5 blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md mx-auto flex flex-col items-center">
+          {/* Top Elegant Flourish */}
+          <div className="opacity-80 mb-12 flex justify-center w-full">
+            <svg width="280" height="24" viewBox="0 0 280 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 12 h100" stroke="#C9A24B" strokeWidth="1" strokeOpacity="0.4" />
+              <path d="M180 12 h100" stroke="#C9A24B" strokeWidth="1" strokeOpacity="0.4" />
+              <path d="M140 0 L145 9 L154 12 L145 15 L140 24 L135 15 L126 12 L135 9 Z" fill="#C9A24B" fillOpacity="0.8" />
+              <path d="M115 9 L118 12 L115 15 L112 12 Z" fill="#C9A24B" fillOpacity="0.6" />
+              <path d="M165 9 L168 12 L165 15 L162 12 Z" fill="#C9A24B" fillOpacity="0.6" />
+              <circle cx="106" cy="12" r="1.5" fill="#C9A24B" fillOpacity="0.4" />
+              <circle cx="174" cy="12" r="1.5" fill="#C9A24B" fillOpacity="0.4" />
+            </svg>
           </div>
-          <div className="mt-12 opacity-80">
-            <ArchMotif color="#E4CE8E" height={16} />
+          
+          <Logo tone="light" size="lg" className="justify-center scale-110" />
+          
+          {/* Divider */}
+          <div className="my-10 flex items-center justify-center gap-4 w-full">
+            <div className="h-[1px] flex-1 max-w-[80px] bg-gradient-to-r from-transparent to-gold/60"></div>
+            <div className="w-2.5 h-2.5 rounded-sm bg-gold/60 rotate-45"></div>
+            <div className="h-[1px] flex-1 max-w-[80px] bg-gradient-to-l from-transparent to-gold/60"></div>
+          </div>
+          
+          <p className="font-display text-3xl sm:text-4xl leading-tight text-gold-light tracking-wide italic px-4">
+            Every family,<br />personally invited.
+          </p>
+          
+          {/* Bottom Elegant Flourish */}
+          <div className="opacity-80 mt-16 flex justify-center w-full">
+             <svg width="280" height="24" viewBox="0 0 280 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 12 h100" stroke="#C9A24B" strokeWidth="1" strokeOpacity="0.4" />
+              <path d="M180 12 h100" stroke="#C9A24B" strokeWidth="1" strokeOpacity="0.4" />
+              <path d="M140 0 L145 9 L154 12 L145 15 L140 24 L135 15 L126 12 L135 9 Z" fill="#C9A24B" fillOpacity="0.8" />
+              <path d="M115 9 L118 12 L115 15 L112 12 Z" fill="#C9A24B" fillOpacity="0.6" />
+              <path d="M165 9 L168 12 L165 15 L162 12 Z" fill="#C9A24B" fillOpacity="0.6" />
+              <circle cx="106" cy="12" r="1.5" fill="#C9A24B" fillOpacity="0.4" />
+              <circle cx="174" cy="12" r="1.5" fill="#C9A24B" fillOpacity="0.4" />
+            </svg>
           </div>
         </div>
       </div>
