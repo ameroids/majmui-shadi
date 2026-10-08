@@ -20,6 +20,7 @@ import PrintRosterPage from './pages/PrintRosterPage'
 
 import AccountsDashboard from './pages/AccountsDashboard'
 import InvitationSplash from './components/InvitationSplash'
+import RSVPSplash from './components/RSVPSplash'
 
 export default function App() {
   return (
@@ -29,7 +30,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LoginPage />} />
             <Route path="/confirm/:id" element={<><InvitationSplash /><ConfirmationPage /></>} />
-            <Route path="/rsvp/:id" element={<><InvitationSplash /><RSVPPage /></>} />
+            <Route path="/rsvp/:id" element={<><RSVPSplash /><RSVPPage /></>} />
 
             <Route path="/dashboard" element={
               <ProtectedRoute roles={['bride', 'groom']}><BrideGroomDashboard /></ProtectedRoute>
