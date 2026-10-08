@@ -107,7 +107,7 @@
     a.rel = 'noopener noreferrer';
     a.setAttribute('aria-label', 'Chat with Ameroids Tech Studio on WhatsApp: ' + PHONE_DISPLAY);
     a.innerHTML =
-      '<span>Crafted by <strong>Ameroids Tech Studio</strong></span>' +
+      '<span>Developed by <strong>Ameroids Tech Studio</strong></span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + WA_ICON + '"/></svg>' +
       '<span>For queries:&nbsp;' + PHONE_DISPLAY + '</span>';
     document.body.appendChild(a);
