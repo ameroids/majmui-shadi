@@ -19,6 +19,7 @@ import SendRsvpPage from './pages/SendRsvpPage'
 import PrintRosterPage from './pages/PrintRosterPage'
 
 import AccountsDashboard from './pages/AccountsDashboard'
+import InvitationSplash from './components/InvitationSplash'
 
 export default function App() {
   return (
@@ -27,8 +28,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LoginPage />} />
-            <Route path="/confirm/:id" element={<ConfirmationPage />} />
-            <Route path="/rsvp/:id" element={<RSVPPage />} />
+            <Route path="/confirm/:id" element={<><InvitationSplash /><ConfirmationPage /></>} />
+            <Route path="/rsvp/:id" element={<><InvitationSplash /><RSVPPage /></>} />
 
             <Route path="/dashboard" element={
               <ProtectedRoute roles={['bride', 'groom']}><BrideGroomDashboard /></ProtectedRoute>

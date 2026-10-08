@@ -1,0 +1,238 @@
+:root {
+  --inv-green: #11352f;
+  --inv-green2: #0b2420;
+  --inv-gold: #c9a24b;
+  --inv-gold2: #e6cf8f;
+  --inv-ink: #11352f;
+}
+
+.invitation-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 50%, #164238 0%, var(--inv-green2) 78%);
+  transition: opacity 0.9s ease;
+  z-index: 999999;
+}
+.invitation-splash.out {
+  opacity: 0;
+  pointer-events: none;
+}
+.invitation-splash:before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: repeating-linear-gradient(45deg, transparent 0 46px, rgba(201, 162, 75, 0.05) 46px 47px),
+              repeating-linear-gradient(-45deg, transparent 0 46px, rgba(201, 162, 75, 0.05) 46px 47px);
+}
+.invitation-splash .scene {
+  position: relative;
+  font-size: clamp(11px, 3.3vw, 15px);
+  margin-top: 12em;
+  perspective: 70em;
+  animation: inv-enter 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+}
+@keyframes inv-enter {
+  from { opacity: 0; transform: translateY(3em) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+.invitation-splash .env {
+  position: relative;
+  width: 26em;
+  height: 17em;
+  transform-style: preserve-3d;
+}
+.invitation-splash .env:after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -2.2em;
+  height: 2em;
+  background: rgba(0, 0, 0, 0.5);
+  filter: blur(1.2em);
+  border-radius: 50%;
+  z-index: 0;
+}
+.invitation-splash .back {
+  position: absolute;
+  inset: 0;
+  background: #d9c9a0;
+  border-radius: 0.5em;
+  z-index: 1;
+}
+.invitation-splash .pk {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 0.5em;
+  overflow: hidden;
+}
+.invitation-splash .pk i {
+  position: absolute;
+  inset: 0;
+}
+.invitation-splash .pk .l {
+  background: #ebdfc4;
+  clip-path: polygon(0 0, 52% 56%, 0 100%);
+}
+.invitation-splash .pk .r {
+  background: #e4d6b6;
+  clip-path: polygon(100% 0, 48% 56%, 100% 100%);
+}
+.invitation-splash .pk .b {
+  background: #f4ecd8;
+  clip-path: polygon(0 100%, 50% 52%, 100% 100%);
+}
+.invitation-splash .flap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 10em;
+  transform-origin: 50% 0;
+  z-index: 4;
+  background: linear-gradient(#e9dcbe, #dccb9f);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  animation: flap 1s ease 2.3s forwards;
+}
+@keyframes flap {
+  0% { transform: rotateX(0); z-index: 4; }
+  49% { transform: rotateX(90deg); z-index: 4; }
+  50% { z-index: 1; background: #cdb985; }
+  100% { transform: rotateX(180deg); z-index: 1; background: #cdb985; }
+}
+.invitation-splash .seal {
+  position: absolute;
+  left: 50%;
+  top: 7.4em;
+  width: 4.2em;
+  height: 4.2em;
+  margin: -2.1em 0 0 -2.1em;
+  border-radius: 50%;
+  z-index: 5;
+  background: radial-gradient(circle at 35% 30%, #f0dc9c, #c9a24b 60%, #9c7a2c);
+  box-shadow: 0 0.3em 0.8em rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0);
+  animation: seal 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) 1s forwards, pop 0.5s ease 2.1s forwards;
+}
+.invitation-splash .seal svg {
+  width: 2.6em;
+  height: 1.7em;
+}
+.invitation-splash .seal circle {
+  fill: none;
+  stroke: #7a5c18;
+  stroke-width: 2.4;
+}
+@keyframes seal {
+  to { transform: scale(1); }
+}
+@keyframes pop {
+  0% { transform: scale(1); opacity: 1; }
+  40% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.invitation-splash .card {
+  position: absolute;
+  left: 1.5em;
+  bottom: 1em;
+  width: 23em;
+  height: 17em;
+  z-index: 2;
+  background: #fffdf8;
+  border-radius: 0.4em;
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.25);
+  animation: inv-rise 1.5s cubic-bezier(0.5, 0, 0.2, 1) 3.2s forwards;
+}
+@keyframes inv-rise {
+  to { transform: translateY(-13.4em); }
+}
+.invitation-splash .card .bd {
+  position: absolute;
+  inset: 0.55em;
+  border: 1px solid rgba(201, 162, 75, 0.7);
+  border-radius: 0.25em;
+}
+.invitation-splash .card .tx {
+  position: relative;
+  text-align: center;
+  padding: 1.5em 1.2em 0;
+  opacity: 0;
+  animation: inv-fade 1s ease 3.9s forwards;
+  color: var(--inv-ink);
+}
+.invitation-splash .tx svg.rg {
+  width: 3.4em;
+  height: 2.2em;
+}
+.invitation-splash .tx .rg circle {
+  fill: none;
+  stroke: var(--inv-gold);
+  stroke-width: 2.4;
+}
+.invitation-splash .tx h1 {
+  font: 600 2.45em/1.1 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: 0.03em;
+  margin-top: 0.1em;
+  margin-bottom: 0;
+}
+.invitation-splash .orn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  margin: 0.7em 0;
+}
+.invitation-splash .orn i {
+  height: 1px;
+  width: 3.6em;
+  background: var(--inv-gold);
+}
+.invitation-splash .orn b {
+  width: 0.5em;
+  height: 0.5em;
+  background: var(--inv-gold);
+  transform: rotate(45deg);
+}
+.invitation-splash .tx p {
+  font: italic 500 1.55em/1.25 'Cormorant Garamond', Georgia, serif;
+  color: #8a6b1f;
+  margin: 0;
+}
+.invitation-splash .tx small {
+  display: block;
+  margin-top: 1.2em;
+  font-size: 0.62em;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #7b8985;
+}
+.invitation-splash .tx small b {
+  display: block;
+  margin-top: 0.3em;
+  font: 600 1.55em 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--inv-green);
+}
+@keyframes inv-fade {
+  to { opacity: 1; }
+}
+.invitation-splash .sp {
+  position: absolute;
+  color: var(--inv-gold2);
+  opacity: 0;
+  pointer-events: none;
+  animation: tw 2.4s ease-in-out infinite;
+}
+@keyframes tw {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
