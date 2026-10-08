@@ -8,6 +8,7 @@ import { Field, Input } from '../components/ui/Field'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authenticate } from '../lib/db'
+import SplashIntro from '../components/SplashIntro'
 
 
 export default function LoginPage() {
@@ -43,8 +44,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Decorative brand panel */}
+    <>
+      <SplashIntro />
+      <div className="min-h-screen flex flex-col lg:flex-row">
+        {/* Decorative brand panel */}
       <div className="relative bg-emerald-deep text-ivory lg:w-[44%] px-6 sm:px-10 py-12 lg:py-0 flex flex-col justify-center items-center overflow-hidden text-center">
         <div className="absolute inset-0 paper-texture opacity-[0.06]" />
         
@@ -139,5 +142,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

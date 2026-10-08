@@ -4,10 +4,10 @@
 
 @layer utilities {
   .animate-fade-in {
-    animation: fadeIn 0.4s ease-out forwards;
+    animation: fadeIn 0.6s ease-out forwards;
   }
   .animate-slide-up {
-    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: slideUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
   .glass-card {
     background: rgba(255, 255, 255, 0.85);
@@ -25,7 +25,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(15px);
+    transform: translateY(25px);
   }
   to {
     opacity: 1;

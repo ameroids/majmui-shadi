@@ -44,7 +44,7 @@ export default function DashboardLayout({ children, navItems = [], activePath, r
         </div>
       </header>
 
-      <div className="flex-1 flex max-w-7xl mx-auto w-full">
+      <div className="flex-1 flex max-w-7xl mx-auto w-full animate-fade-in">
         {navItems.length > 0 && (
           <>
             <aside className="hidden lg:flex w-60 flex-none flex-col gap-1 px-4 py-6 border-r border-ivory-line">
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children, navItems = [], activePath, r
           </>
         )}
 
-        <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 min-w-0">{children}</main>
+        <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 min-w-0 animate-slide-up">{children}</main>
       </div>
     </div>
   )
