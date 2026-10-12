@@ -103,36 +103,87 @@ export async function searchFamilyByHofIts(hofIts) {
 
 export async function searchFamiliesByName(nameQuery) {
   if (!nameQuery || !nameQuery.trim()) return []
-  
-  const searchStr = `%${nameQuery.trim()}%`
 
-  // 1. Search families by surname or hof_its
-  const { data: surnameMatches } = await supabase
-    .from('families')
-    .select('id')
-    .or(`surname.ilike.${searchStr},hof_its.ilike.${searchStr}`)
+  const trimmed = nameQuery.trim()
+  const tokens = trimmed.split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return []
 
-  // 2. Search members by full_name or member_its
-  const { data: memberMatches } = await supabase
-    .from('family_members')
-    .select('family_id')
-    .or(`full_name.ilike.${searchStr},member_its.ilike.${searchStr}`)
-
-  // 3. Combine family IDs
   const familyIds = new Set()
-  if (surnameMatches) surnameMatches.forEach(f => familyIds.add(f.id))
-  if (memberMatches) memberMatches.forEach(m => familyIds.add(m.family_id))
+
+  if (tokens.length === 1) {
+    const searchStr = `%${tokens[0]}%`
+
+    // 1. Search families by surname or hof_its
+    const { data: surnameMatches } = await supabase
+      .from('families')
+      .select('id')
+      .or(`surname.ilike.${searchStr},hof_its.ilike.${searchStr}`)
+      .limit(30)
+
+    // 2. Search members by full_name or member_its
+    const { data: memberMatches } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .or(`full_name.ilike.${searchStr},member_its.ilike.${searchStr}`)
+      .limit(30)
+
+    if (surnameMatches) surnameMatches.forEach(f => familyIds.add(f.id))
+    if (memberMatches) memberMatches.forEach(m => familyIds.add(m.family_id))
+  } else {
+    // Multi-keyword search
+
+    // 1. Search members whose full_name contains all keywords (in any order)
+    let memberQuery = supabase
+      .from('family_members')
+      .select('family_id')
+      .limit(40)
+
+    for (const t of tokens) {
+      memberQuery = memberQuery.ilike('full_name', `%${t}%`)
+    }
+    const { data: matchedMembers } = await memberQuery
+    if (matchedMembers) matchedMembers.forEach(m => familyIds.add(m.family_id))
+
+    // 2. Cross-field search: one token is in surname, remaining tokens in member's full_name
+    for (const t of tokens) {
+      if (t.length >= 2) {
+        const otherTokens = tokens.filter(tok => tok !== t)
+        const { data: famsWithSurname } = await supabase
+          .from('families')
+          .select('id')
+          .ilike('surname', `%${t}%`)
+          .limit(20)
+
+        if (famsWithSurname && famsWithSurname.length > 0) {
+          const famIds = famsWithSurname.map(f => f.id)
+          let famMemberQ = supabase
+            .from('family_members')
+            .select('family_id')
+            .in('family_id', famIds)
+            .limit(20)
+
+          for (const ot of otherTokens) {
+            famMemberQ = famMemberQ.ilike('full_name', `%${ot}%`)
+          }
+          const { data: crossMatched } = await famMemberQ
+          if (crossMatched) crossMatched.forEach(m => familyIds.add(m.family_id))
+        }
+      }
+    }
+  }
 
   if (familyIds.size === 0) return []
 
-  // 4. Fetch the full families with their members
+  const targetIds = Array.from(familyIds).slice(0, 30)
+
+  // Fetch full families with their members
   const { data: families, error } = await supabase
     .from('families')
     .select('id, hof_its, surname, is_manual, family_members(*)')
-    .in('id', Array.from(familyIds))
-    
+    .in('id', targetIds)
+
   if (error || !families) return []
-  
+
   return families.map(f => ({
     id: f.id,
     hof_its: f.hof_its,
@@ -141,6 +192,7 @@ export async function searchFamiliesByName(nameQuery) {
     members: f.family_members,
   }))
 }
+
 
 export async function createManualFamily({ hof_its, surname, members }) {
   const { data: family, error: famError } = await supabase
