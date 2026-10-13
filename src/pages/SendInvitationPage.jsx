@@ -131,6 +131,18 @@ export default function SendInvitationPage() {
     return true
   })
 
+  const handleStartNewInvitation = () => {
+    if (user.can_send_invitations === false) {
+      setLockedModal({
+        open: true,
+        title: 'Action Locked',
+        message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
+      })
+      return
+    }
+    setWizardOpen(true)
+  }
+
   return (
     <DashboardLayout navItems={filteredNav} activePath="/dashboard/send-invitation" roleLabel={user.role}>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -142,17 +154,7 @@ export default function SendInvitationPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => {
-            if (user.can_send_invitations === false) {
-              setLockedModal({
-                open: true,
-                title: 'Action Locked',
-                message: 'You cannot send new invitations. Kindly contact your TNC admin for assistance.'
-              })
-              return
-            }
-            setWizardOpen(true)
-          }} size="lg">+ New Invitation</Button>
+          <Button onClick={handleStartNewInvitation} size="lg">+ New Invitation</Button>
         </div>
       </div>
 
@@ -164,7 +166,7 @@ export default function SendInvitationPage() {
             icon="✉"
             title="No invitations created yet"
             description="Start a new invitation to pick a family, a representative, and the events they're invited to."
-            action={<Button onClick={() => setWizardOpen(true)}>+ New Invitation</Button>}
+            action={<Button onClick={handleStartNewInvitation}>+ New Invitation</Button>}
           />
         </Card>
       ) : (
@@ -385,6 +387,11 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
   ][step]
 
   const handleGenerateAndCreate = async () => {
+    if (user?.can_send_invitations === false) {
+      showToast('You cannot send new invitations. Kindly contact your TNC admin for assistance.', 'error')
+      onClose()
+      return
+    }
     setCreating(true)
     try {
       const parsedMemberEvents = Array.from(selectedMemberEvents).map(str => ({
