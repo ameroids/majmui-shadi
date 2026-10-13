@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   useEffect(() => {
@@ -16,10 +17,10 @@ export default function Modal({ open, onClose, title, children, footer, size = '
 
   const maxWidth = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' }[size]
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
       <div
-        className="absolute inset-0 bg-ink/50 backdrop-blur-sm animate-[fadein_0.15s_ease-out]"
+        className="fixed inset-0 bg-ink/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -27,7 +28,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative w-full ${maxWidth} bg-ivory rounded-t-2xl sm:rounded-2xl shadow-lift max-h-[92vh] flex flex-col border border-ivory-line`}
+        className={`relative z-10 w-full ${maxWidth} bg-ivory rounded-2xl shadow-lift max-h-[92vh] flex flex-col border border-ivory-line my-auto`}
       >
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-ivory-line">
           <h2 className="font-display text-xl sm:text-2xl font-semibold text-emerald-deep">{title}</h2>
@@ -42,6 +43,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
         <div className="px-5 sm:px-6 py-5 overflow-y-auto">{children}</div>
         {footer && <div className="px-5 sm:px-6 py-4 border-t border-ivory-line flex flex-wrap gap-3 justify-end">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
