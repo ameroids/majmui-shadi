@@ -9,8 +9,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
-  getFamiliesWithInviteesForUser, getEvents,
-  getInvitationsByUser, updateInvitationStatus, getUserStats
+  getEvents, getInvitationsByUser, updateInvitationStatus
 } from '../lib/db'
 import { buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 
@@ -26,10 +25,8 @@ export default function SendRsvpPage() {
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  const [families, setFamilies] = useState([])
   const [events, setEvents] = useState([])
   const [invitations, setInvitations] = useState([])
-  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
 
@@ -37,11 +34,9 @@ export default function SendRsvpPage() {
 
   const loadAll = async () => {
     setLoading(true)
-    const [fam, evt, inv, s] = await Promise.all([
-      getFamiliesWithInviteesForUser(user.id),
+    const [evt, inv] = await Promise.all([
       getEvents(),
       getInvitationsByUser(user.id),
-      getUserStats(user.id),
     ])
     
     // Only show invitations that have at least one Confirmed (or Attending/Not Attending) member
@@ -52,10 +47,8 @@ export default function SendRsvpPage() {
       return i.member_events?.some(me => me.rsvp_status === 'Confirmed' || me.rsvp_status === 'Attending' || me.rsvp_status === 'Not Attending')
     })
 
-    setFamilies(fam)
     setEvents(evt)
     setInvitations(validRsvpInvitations)
-    setStats(s)
     setLoading(false)
   }
 

@@ -4,11 +4,11 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
-import { Field, Input, Select, Checkbox } from '../components/ui/Field'
+import { Field, Input, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility, createMassFakeInvitees } from '../lib/db'
+import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
 import Modal from '../components/ui/Modal'
 
 const NAV = [
@@ -63,19 +63,6 @@ export default function AddInviteePage() {
     setPhaseVisibility(pv)
     sessionStorage.setItem('phase_visibility', JSON.stringify(pv))
     setLoadingList(false)
-  }
-
-  const handleMassTest = async () => {
-    setSaving(true)
-    try {
-      await createMassFakeInvitees(user.id)
-      showToast('Successfully generated 50 fake invitees for testing.', 'success')
-      refreshList()
-    } catch (e) {
-      showToast('Error: ' + e.message, 'error')
-    } finally {
-      setSaving(false)
-    }
   }
 
   useEffect(() => { refreshList() }, []) // eslint-disable-line

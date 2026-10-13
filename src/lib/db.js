@@ -1,9 +1,5 @@
 import { supabase } from './supabaseClient'
 
-export function resetDemoData() {
-  console.log('Demo data is removed. Operating on live Supabase.')
-}
-
 // --------------------------- Auth -----------------------------------------
 
 export async function authenticate(username, password, expectedRoles) {
@@ -81,25 +77,6 @@ export async function getEvents() {
 }
 
 // --------------------------- Families (master data, read-mostly) -----------
-
-export async function searchFamilyByHofIts(hofIts) {
-  const { data: family, error } = await supabase
-    .from('families')
-    .select('id, hof_its, surname, is_manual, family_members(*)')
-    .eq('hof_its', hofIts.trim())
-    .maybeSingle()
-    
-  if (!error && family) {
-    return {
-      id: family.id,
-      hof_its: family.hof_its,
-      surname: family.surname,
-      is_manual: family.is_manual,
-      members: family.family_members,
-    }
-  }
-  return null
-}
 
 export async function searchFamiliesByName(nameQuery) {
   if (!nameQuery || !nameQuery.trim()) return []
@@ -963,15 +940,6 @@ export async function deleteAllFamilies() {
   if (error) throw error
 }
 
-export async function getUsersByRole(role) {
-  const { data: users, error } = await supabase
-    .from('users')
-    .select('id, username, display_name, role, created_at')
-    .eq('role', role)
-  if (error) return []
-  return users
-}
-
 export async function getAllUsersSafe() {
   const { data: users, error } = await supabase
     .from('users')
@@ -989,11 +957,6 @@ export async function getGlobalRsvpStatus() {
   return data ? data.can_send_rsvps !== false : true
 }
 
-export async function setGlobalRsvpStatus(isOpen) {
-  const { error } = await supabase.from('users').update({ can_send_rsvps: isOpen }).eq('role', 'admin')
-  if (error) throw error
-}
-
 export async function getGlobalPhaseVisibility() {
   const { data } = await supabase.from('users').select('phase_1_visible, phase_2_visible, phase_3_visible').eq('role', 'admin').maybeSingle()
   if (!data) return { phase_1_visible: true, phase_2_visible: true, phase_3_visible: true }
@@ -1007,89 +970,6 @@ export async function getGlobalPhaseVisibility() {
 export async function setGlobalPhaseVisibility(updates) {
   const { error } = await supabase.from('users').update(updates).eq('role', 'admin')
   if (error) throw error
-}
-
-
-export async function createMassFakeInvitees(userId) {
-  // Create 10 families with 5 members each
-  for (let i = 0; i < 10; i++) {
-    const manualId = 'manual_' + Math.random().toString(36).slice(2, 8)
-    const generatedSurname = `FakeFamily ${Math.random().toString(36).substring(2, 6)}`
-    
-    const { data: family, error: famError } = await supabase.from('families').insert([{
-      surname: generatedSurname,
-      is_manual: true,
-      hof_its: manualId
-    }]).select('id').single()
-
-    if (famError) throw new Error("Family error: " + famError.message)
-
-    if (family) {
-      // First create family_members
-      const membersToInsert = Array.from({ length: 5 }).map((_, j) => ({
-        family_id: family.id,
-        member_its: `${Math.floor(Math.random() * 100000000)}`,
-        full_name: `Fake Member ${j + 1}`,
-        mobile: `999999999${j}`
-      }))
-      
-      const { data: members, error: memError } = await supabase.from('family_members').insert(membersToInsert).select('id, member_its, full_name, mobile')
-      if (memError) throw new Error("Member error: " + memError.message)
-
-      // Then link them in invitees
-      if (members) {
-        const invitees = members.map(m => ({
-          family_id: family.id,
-          bride_groom_user_id: userId,
-          member_id: m.id,
-          hof_its: manualId,
-          surname: generatedSurname,
-          full_name: m.full_name,
-          mobile: m.mobile,
-          member_its: m.member_its
-        }))
-        const { error: invError } = await supabase.from('invitees').insert(invitees)
-        if (invError) throw new Error("Invitee error: " + invError.message)
-      }
-    }
-  }
-}
-
-export async function createMassFakeInvitations(userId) {
-  const [families, events] = await Promise.all([
-    getFamiliesWithInviteesForUser(userId),
-    getEvents()
-  ])
-  
-  const { data: existingInvs } = await supabase.from('invitations').select('family_id').eq('bride_groom_user_id', userId)
-  const existingFamIds = new Set((existingInvs || []).map(i => i.family_id))
-  
-  const uninvitedFamilies = families.filter(f => !existingFamIds.has(f.family_id))
-  
-  for (const family of uninvitedFamilies) {
-    if (!family.members || family.members.length === 0) continue
-    const recipient = family.members[0]
-    
-    const member_events = []
-    family.members.forEach(m => {
-      events.forEach(e => {
-        member_events.push({ member_id: m.id, event_id: e.id })
-      })
-    })
-    
-    await createInvitation(userId, {
-      family_id: family.family_id,
-      surname: family.surname,
-      hof_its: family.hof_its,
-      recipient: { 
-        member_id: recipient.member_id,
-        full_name: recipient.full_name,
-        mobile: recipient.mobile
-      },
-      message: "Mass generated test invitation",
-      member_events
-    })
-  }
 }
 
 // --------------------------- Public RSVP -------------------------------------
@@ -1248,172 +1128,3 @@ export async function submitRsvp(invitationId, rsvpData, isConfirmation = false)
   }
 }
 
-// --------------------------- Confirmations -----------------------------------
-
-export async function createConfirmation(userId, payload) {
-  const { data: record, error } = await supabase
-    .from('confirmations')
-    .insert([{
-      bride_groom_user_id: userId,
-      family_id: payload.family_id,
-      whatsapp_recipient_member_id: payload.recipient.member_id,
-      status: 'Ready',
-      generated_message: payload.message,
-    }])
-    .select()
-    .single()
-    
-  if (error) throw error
-  
-  const inviteeIds = payload.invitee_ids
-  
-  await supabase
-    .from('invitees')
-    .update({ confirmation_status: 'Ready' })
-    .in('id', inviteeIds)
-
-  return {
-    ...record,
-    surname: payload.surname,
-    hof_its: payload.hof_its,
-    recipient_name: payload.recipient.full_name,
-    recipient_mobile: payload.recipient.mobile,
-  }
-}
-
-export async function updateConfirmationStatus(confirmationId, status) {
-  const updateData = { status }
-  if (status === 'Sent') updateData.sent_at = new Date().toISOString()
-  
-  const { data: confirmation, error } = await supabase
-    .from('confirmations')
-    .update(updateData)
-    .eq('id', confirmationId)
-    .select()
-    .single()
-    
-  if (error) throw error
-  
-  const { data: invitees } = await supabase
-    .from('invitees')
-    .select('id')
-    .eq('family_id', confirmation.family_id)
-    .eq('bride_groom_user_id', confirmation.bride_groom_user_id)
-    
-  if (invitees && invitees.length > 0) {
-    const inviteeIds = invitees.map(i => i.id)
-    await supabase
-      .from('invitees')
-      .update({ confirmation_status: status })
-      .in('id', inviteeIds)
-  }
-  
-  return confirmation
-}
-
-export async function updateConfirmationMessage(confirmationId, message) {
-  const { data: confirmation, error } = await supabase
-    .from('confirmations')
-    .update({ generated_message: message })
-    .eq('id', confirmationId)
-    .select()
-    .single()
-    
-  if (error) throw error
-  return confirmation
-}
-
-export async function getConfirmationsByUser(userId) {
-  const { data: confirmations, error } = await supabase
-    .from('confirmations')
-    .select(`
-      *,
-      families (surname, hof_its),
-      family_members (full_name, mobile)
-    `)
-    .eq('bride_groom_user_id', userId)
-    .order('created_at', { ascending: false })
-    
-  if (error) return []
-  
-  // Fetch invitees for this user to map them to the confirmations
-  const { data: invitees } = await supabase
-    .from('invitees')
-    .select('id, full_name, family_id, confirmation_status')
-    .eq('bride_groom_user_id', userId)
-    .eq('selected', true)
-  
-  return confirmations.map(conf => {
-    const confInvitees = invitees ? invitees.filter(i => i.family_id === conf.family_id) : []
-    
-    return {
-      ...conf,
-      surname: conf.families?.surname,
-      hof_its: conf.families?.hof_its,
-      recipient_name: Array.isArray(conf.family_members) ? conf.family_members[0]?.full_name : conf.family_members?.full_name,
-      recipient_mobile: Array.isArray(conf.family_members) ? conf.family_members[0]?.mobile : conf.family_members?.mobile,
-      invitees: confInvitees
-    }
-  })
-}
-
-export async function getPublicConfirmationDetails(confirmationId) {
-  const { data: conf, error } = await supabase
-    .from('confirmations')
-    .select(`
-      id,
-      status,
-      family_id,
-      bride_groom_user_id,
-      families (surname, hof_its),
-      users (display_name)
-    `)
-    .eq('id', confirmationId)
-    .single()
-    
-  if (error || !conf) {
-    console.error("Error fetching public confirmation:", error)
-    return { error: 'Confirmation not found.' }
-  }
-
-  // Fetch invitees for this family & user
-  const { data: invitees } = await supabase
-    .from('invitees')
-    .select('id, member_id, full_name, confirmation_status')
-    .eq('family_id', conf.family_id)
-    .eq('bride_groom_user_id', conf.bride_groom_user_id)
-    .eq('selected', true)
-
-  return {
-    confirmation: {
-      id: conf.id,
-      status: conf.status,
-      surname: conf.families?.surname,
-      invited_by: conf.users?.display_name
-    },
-    invitees: invitees || []
-  }
-}
-
-export async function submitConfirmation(confirmationId, responses) {
-  // responses is an array of { id: invitee_id, status: 'Confirmed' | 'Declined' }
-  try {
-    for (const res of responses) {
-      const { error: invErr } = await supabase
-        .from('invitees')
-        .update({ confirmation_status: res.status })
-        .eq('id', res.id)
-      if (invErr) return { error: invErr.message }
-    }
-    
-    const { error: confErr } = await supabase
-      .from('confirmations')
-      .update({ status: 'Responded' })
-      .eq('id', confirmationId)
-    if (confErr) return { error: confErr.message }
-      
-    return { success: true }
-  } catch (error) {
-    return { error: error.message }
-  }
-}

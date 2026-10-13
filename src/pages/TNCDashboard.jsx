@@ -5,7 +5,7 @@ import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { Input, Select } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
-import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEvents, getBridesAndGrooms } from '../lib/db'
+import { getAdminStats, getAllFamilies, getAllInvitees, getAllInvitations, getEvents } from '../lib/db'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },

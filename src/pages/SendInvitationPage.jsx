@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
   getFamiliesWithInviteesForUser, getEvents, createInvitation,
-  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, createMassFakeInvitations, getUserStats
+  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, getUserStats
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 
@@ -78,18 +78,6 @@ export default function SendInvitationPage() {
     await updateInvitationStatus(invitation.id, 'Sent')
     showToast(`Marked ${invitation.surname} family's invitation as sent.`)
     loadAll()
-  }
-
-  const handleGenerateInvitationsTest = async () => {
-    setLoading(true)
-    try {
-      await createMassFakeInvitations(user.id)
-      showToast('Successfully mass generated invitations for all uninvited families!', 'success')
-      await loadAll()
-    } catch (e) {
-      showToast('Error generating invitations: ' + e.message, 'error')
-      setLoading(false)
-    }
   }
 
   const [openedRsvpLinks, setOpenedRsvpLinks] = useState(new Set())

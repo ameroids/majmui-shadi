@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
-import ArchMotif from '../components/ArchMotif'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { Field, Input } from '../components/ui/Field'

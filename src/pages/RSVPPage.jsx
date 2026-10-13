@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom'
 import { getPublicInvitationDetails, submitRsvp, getGlobalRsvpStatus } from '../lib/db'
 import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import Logo from '../components/Logo'
 import ArchMotif from '../components/ArchMotif'
 import CardCarousel from '../components/CardCarousel'
 

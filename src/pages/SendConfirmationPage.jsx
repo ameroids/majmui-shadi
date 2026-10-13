@@ -1,17 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
 import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
-import Modal from '../components/ui/Modal'
-import { Field, Input } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
-import { useToast } from '../context/ToastContext'
-import {
-  getInvitationsByUser, getEvents, createManualFamily, saveInvitees, createInvitation
-} from '../lib/db'
+import { getInvitationsByUser, getEvents } from '../lib/db'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -22,7 +16,6 @@ const NAV = [
 
 export default function SendConfirmationPage() {
   const { user } = useAuth()
-  const { showToast } = useToast()
 
   const [invitations, setInvitations] = useState([])
   const [events, setEvents] = useState([])

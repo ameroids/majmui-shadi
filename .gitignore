@@ -6,4 +6,4 @@ dist
 *.log
 *.csv
 *.xlsx
-
+scratch/
