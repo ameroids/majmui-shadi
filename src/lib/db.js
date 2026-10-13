@@ -953,6 +953,11 @@ export async function resetUserPhaseData(userId, phase) {
   }
 }
 
+export async function deleteFamily(familyId) {
+  const { error } = await supabase.from('families').delete().eq('id', familyId)
+  if (error) throw error
+}
+
 export async function deleteAllFamilies() {
   const { error } = await supabase.from('families').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Deletes all rows safely
   if (error) throw error

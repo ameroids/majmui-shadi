@@ -8,7 +8,7 @@ import { Field, Input } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteAllFamilies, updateUserPermissions, getGlobalPhaseVisibility, setGlobalPhaseVisibility } from '../lib/db'
+import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteFamily, deleteAllFamilies, updateUserPermissions, getGlobalPhaseVisibility, setGlobalPhaseVisibility } from '../lib/db'
 import { getTemplate, setTemplate, DEFAULT_TEMPLATE } from '../lib/messageTemplate'
 import Modal from '../components/ui/Modal'
 
@@ -120,8 +120,30 @@ function Overview({ stats, events }) {
 function FamiliesTable({ families, onRefresh }) {
   const { showToast } = useToast()
   const [q, setQ] = useState('')
-  const filtered = families.filter((f) => f.surname.toLowerCase().includes(q.toLowerCase()))
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, family: null })
   
+  const filtered = families.filter((f) => 
+    (f.surname || '').toLowerCase().includes(q.toLowerCase()) || 
+    (f.hof_its || '').includes(q)
+  )
+
+  const handleDeleteSingle = async () => {
+    if (!deleteConfirm.family) return
+    const fam = deleteConfirm.family
+    setDeletingId(fam.id)
+    try {
+      await deleteFamily(fam.id)
+      showToast(`Family "${fam.surname}" has been deleted.`)
+      onRefresh()
+    } catch (err) {
+      showToast(`Failed to delete family: ${err.message}`, 'error')
+    } finally {
+      setDeletingId(null)
+      setDeleteConfirm({ open: false, family: null })
+    }
+  }
+
   const handleDeleteAll = async () => {
     if (confirm('⚠️ WARNING: Are you absolutely sure you want to delete ALL families? This will also wipe out all invitees and generated invitations across all accounts! This action cannot be undone.')) {
       try {
@@ -137,9 +159,11 @@ function FamiliesTable({ families, onRefresh }) {
   return (
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="font-display text-xl font-semibold text-emerald-deep">All Families</h2>
+        <h2 className="font-display text-xl font-semibold text-emerald-deep flex items-center gap-2">
+          All Families <Badge tone="neutral">{filtered.length}</Badge>
+        </h2>
         <div className="flex items-center gap-3">
-          <Input placeholder="Search surname…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+          <Input placeholder="Search surname or ITS…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
           <Button variant="ghost" className="text-wine border border-wine/20 hover:bg-wine/5" onClick={handleDeleteAll}>
             Delete All Families
           </Button>
@@ -150,21 +174,67 @@ function FamiliesTable({ families, onRefresh }) {
           <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
-                <th className="py-2 px-2">Surname</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Source</th>
+                <th className="py-2 px-2">Surname</th>
+                <th className="py-2 px-2">HOF ITS</th>
+                <th className="py-2 px-2">Members</th>
+                <th className="py-2 px-2">Source</th>
+                <th className="py-2 px-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((f) => (
-                <tr key={f.id} className="border-b border-ivory-line last:border-0">
-                  <td className="py-3 px-2 font-medium">{f.surname}</td>
-                  <td className="py-3 px-2">{f.members.length}</td>
-                  <td className="py-3 px-2">{f.manual ? <Badge tone="default">Manual entry</Badge> : <Badge tone="Sent">Master data</Badge>}</td>
+                <tr key={f.id} className="border-b border-ivory-line last:border-0 hover:bg-ivory-soft/30 transition-colors">
+                  <td className="py-3 px-2 font-medium text-emerald-deep">{f.surname}</td>
+                  <td className="py-3 px-2 font-mono text-xs text-ink/60">{f.hof_its || '—'}</td>
+                  <td className="py-3 px-2">{f.members?.length || 0}</td>
+                  <td className="py-3 px-2">
+                    {f.is_manual || f.manual ? <Badge tone="default">Manual entry</Badge> : <Badge tone="Sent">Master data</Badge>}
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-wine hover:bg-wine/10 hover:text-wine py-1 px-2.5 text-xs border border-wine/20"
+                      onClick={() => setDeleteConfirm({ open: true, family: f })}
+                      loading={deletingId === f.id}
+                    >
+                      Delete
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <Modal
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, family: null })}
+        title="Delete Family"
+        size="sm"
+        footer={
+          <div className="flex gap-2 justify-end w-full">
+            <Button variant="ghost" onClick={() => setDeleteConfirm({ open: false, family: null })}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              onClick={handleDeleteSingle}
+              loading={!!deletingId}
+            >
+              Delete Family
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-ink/80 leading-relaxed">
+          Are you sure you want to delete the <strong>{deleteConfirm.family?.surname}</strong> family ({deleteConfirm.family?.members?.length || 0} member{deleteConfirm.family?.members?.length !== 1 ? 's' : ''})?
+        </p>
+        <p className="text-xs text-ink/50 mt-2">
+          This will permanently remove this family, its members, and any associated invitee records.
+        </p>
+      </Modal>
     </Card>
   )
 }
