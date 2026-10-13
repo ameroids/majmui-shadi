@@ -323,12 +323,18 @@ export default function AddInviteePage() {
             <h3 className="text-sm font-semibold text-emerald-deep mb-2">Search Results:</h3>
             {families.map((fam) => {
               const q = searchQuery.trim().toLowerCase()
-              const matchedMembers = fam.members.filter(m => 
-                m.full_name.toLowerCase().includes(q) || 
-                m.mobile?.includes(q) || 
-                m.member_its?.includes(q) || 
-                fam.hof_its?.includes(q)
-              )
+              const queryTokens = q.split(/\s+/).filter(Boolean)
+              const matchedMembers = (fam.members || []).filter((m) => {
+                const name = (m.full_name || '').toLowerCase()
+                const its = (m.member_its || '').toLowerCase()
+                const mob = (m.mobile || '').toLowerCase()
+                return (
+                  name.includes(q) ||
+                  mob.includes(q) ||
+                  its.includes(q) ||
+                  (queryTokens.length > 1 && queryTokens.some((t) => name.includes(t) || its.includes(t)))
+                )
+              })
               
               const displayTitle = matchedMembers.length > 0 
                 ? matchedMembers.map(m => m.full_name).join(', ') 
