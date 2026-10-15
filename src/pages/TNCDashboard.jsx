@@ -152,25 +152,49 @@ export default function TNCDashboard() {
                 ? invitations.filter(inv => inv.event_ids.some(id => String(id) === String(filterEventId)))
                 : invitations;
 
-              // Calculate exact total people invited for the current filtered view
-              const totalPeople = displayInvitations.reduce((sum, inv) => {
+              // Calculate exact total people, male, and female invited for the current filtered view
+              let totalPeople = 0;
+              let maleCount = 0;
+              let femaleCount = 0;
+
+              displayInvitations.forEach((inv) => {
+                let invitedMembers = [];
                 if (filterEventId) {
-                  const uniqueForEvent = new Set(
-                    (inv.member_events || [])
-                      .filter(me => String(me.events?.id) === String(filterEventId))
-                      .map(me => me.invitees?.id)
-                  );
-                  return sum + uniqueForEvent.size;
+                  const uniqueMap = new Map();
+                  (inv.member_events || []).forEach((me) => {
+                    if (String(me.events?.id) === String(filterEventId) && me.invitees?.id) {
+                      uniqueMap.set(me.invitees.id, me.invitees);
+                    }
+                  });
+                  invitedMembers = Array.from(uniqueMap.values());
+                } else {
+                  invitedMembers = inv.invitees || [];
                 }
-                return sum + inv.invitee_ids.length;
-              }, 0);
+
+                totalPeople += invitedMembers.length;
+                invitedMembers.forEach((member) => {
+                  const g = (member?.gender || '').toLowerCase().trim();
+                  if (g === 'male' || g === 'm') {
+                    maleCount++;
+                  } else if (g === 'female' || g === 'f') {
+                    femaleCount++;
+                  }
+                });
+              });
 
               return displayInvitations.length === 0 ? (
                 <EmptyState icon="✉" title="No invitations recorded yet" /> 
               ) : (
                 <>
-                  <p className="text-sm font-semibold text-emerald-deep mb-3">
-                    Total People: {totalPeople}
+                  <p className="text-sm font-semibold text-emerald-deep mb-3 flex items-center gap-2 flex-wrap">
+                    <span>Total People: {totalPeople}</span>
+                    <span className="text-xs font-normal text-ink/40">|</span>
+                    <span className="text-xs font-medium text-emerald-deep/80 bg-emerald/10 px-2 py-0.5 rounded-full">
+                      Male: {maleCount}
+                    </span>
+                    <span className="text-xs font-medium text-wine/80 bg-wine/10 px-2 py-0.5 rounded-full">
+                      Female: {femaleCount}
+                    </span>
                   </p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[640px]">

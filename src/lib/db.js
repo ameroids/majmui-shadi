@@ -520,7 +520,7 @@ export async function getAllInvitations() {
       users (display_name, username),
       families (surname, hof_its),
       family_members (full_name, mobile),
-      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile), events (id, event_name) )
+      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile, gender), events (id, event_name) )
     `)
     .order('created_at', { ascending: false })
     
@@ -537,6 +537,7 @@ export async function getAllInvitations() {
       hof_its: inv.families?.hof_its,
       recipient_name: inv.family_members?.full_name,
       recipient_mobile: inv.family_members?.mobile,
+      invitees: uniqueInvitees.filter(Boolean),
       invitee_ids: uniqueInvitees.map(i => i?.id).filter(Boolean),
       invitee_names: uniqueInvitees.map(i => i?.full_name).filter(Boolean).join(', '),
       event_ids: uniqueEvents.map(e => e?.id).filter(Boolean),
@@ -859,7 +860,8 @@ export async function getTncRsvpData() {
         full_name,
         surname,
         mobile,
-        relationship
+        relationship,
+        gender
       )
     `)
     .in('invitation_id', validInvIds)
@@ -878,6 +880,7 @@ export async function getTncRsvpData() {
     surname: row.invitees?.surname,
     mobile: row.invitees?.mobile,
     relationship: row.invitees?.relationship,
+    gender: row.invitees?.gender,
     invited_by: invMap[row.invitation_id]?.users?.display_name
   }))
 }

@@ -96,28 +96,67 @@ export default function TNCRsvpReportsPage() {
             }
 
             let displayStats = stats
-            if (filterEvent) {
-              let attending = 0, notAttending = 0, pending = 0
-              displayInvitees.forEach(i => {
-                let isAttending = false, isPending = false, isNotAttending = false
-                i.events.forEach(ev => {
-                  if (ev.status === 'Attending') isAttending = true
-                  else if (ev.status === 'Not Attending') isNotAttending = true
-                  else isPending = true
-                })
-                if (isAttending) attending++
-                else if (isPending) pending++
-                else if (isNotAttending) notAttending++
+            let attending = 0, notAttending = 0, pending = 0
+            let attendingMale = 0, attendingFemale = 0
+            let notAttendingMale = 0, notAttendingFemale = 0
+            let pendingMale = 0, pendingFemale = 0
+
+            displayInvitees.forEach(i => {
+              let isAttending = false, isPending = false, isNotAttending = false
+              i.events.forEach(ev => {
+                if (ev.status === 'Attending') isAttending = true
+                else if (ev.status === 'Not Attending') isNotAttending = true
+                else isPending = true
               })
-              displayStats = { attending, notAttending, pendingRsvps: pending }
+
+              const g = (i.gender || '').toLowerCase().trim()
+              const isMale = g === 'male' || g === 'm'
+              const isFemale = g === 'female' || g === 'f'
+
+              if (isAttending) {
+                attending++
+                if (isMale) attendingMale++
+                else if (isFemale) attendingFemale++
+              } else if (isPending) {
+                pending++
+                if (isMale) pendingMale++
+                else if (isFemale) pendingFemale++
+              } else if (isNotAttending) {
+                notAttending++
+                if (isMale) notAttendingMale++
+                else if (isFemale) notAttendingFemale++
+              }
+            })
+
+            displayStats = { 
+              attending, 
+              attendingMale, 
+              attendingFemale, 
+              notAttending, 
+              notAttendingMale, 
+              notAttendingFemale, 
+              pendingRsvps: pending, 
+              pendingMale, 
+              pendingFemale 
             }
 
             return (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-8">
-                  <Stat label="Total Attending (People)" value={displayStats.attending} />
-                  <Stat label="Total Not Attending" value={displayStats.notAttending} />
-                  <Stat label="Total Pending" value={displayStats.pendingRsvps} />
+                  <Stat 
+                    label="Total Attending (People)" 
+                    value={displayStats.attending} 
+                    male={displayStats.attendingMale} 
+                    female={displayStats.attendingFemale} 
+                  />
+                  <Stat 
+                    label="Total Not Attending" 
+                    value={displayStats.notAttending} 
+                  />
+                  <Stat 
+                    label="Total Pending" 
+                    value={displayStats.pendingRsvps} 
+                  />
                 </div>
 
                 <Card className="p-5 sm:p-6">
@@ -215,11 +254,23 @@ export default function TNCRsvpReportsPage() {
   )
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, male, female }) {
   return (
     <Card className="p-4 sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-ink/45">{label}</p>
-      <p className="font-display text-3xl font-semibold mt-1 text-emerald-deep">{value}</p>
+      <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+        <p className="font-display text-3xl font-semibold text-emerald-deep">{value}</p>
+        {(male !== undefined || female !== undefined) && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="font-medium text-emerald-deep/80 bg-emerald/10 px-2 py-0.5 rounded-full">
+              Male: {male ?? 0}
+            </span>
+            <span className="font-medium text-wine/80 bg-wine/10 px-2 py-0.5 rounded-full">
+              Female: {female ?? 0}
+            </span>
+          </div>
+        )}
+      </div>
     </Card>
   )
 }
