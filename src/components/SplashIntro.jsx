@@ -52,7 +52,7 @@ export default function SplashIntro() {
           <circle cx="130" cy="10" r="1.6" />
           <circle cx="170" cy="10" r="1.6" />
         </svg>
-        <div className="credit"><small>Developed by</small><b>Ameroids Tech Studio</b></div>
+        <div className="credit"><small>Developed by</small><a href="https://ameroids.in" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}><b>Ameroids Tech Studio</b></a></div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import SendInvitationPage from './pages/SendInvitationPage'
 import SendConfirmationPage from './pages/SendConfirmationPage'
 import AdminDashboard from './pages/AdminDashboard'
 import TNCDashboard from './pages/TNCDashboard'
+import TNCInvitationsPage from './pages/TNCInvitationsPage'
 import TNCEventReportsPage from './pages/TNCEventReportsPage'
 import TNCIndividualReportsPage from './pages/TNCIndividualReportsPage'
 import TNCRsvpReportsPage from './pages/TNCRsvpReportsPage'
@@ -72,6 +73,9 @@ export default function App() {
 
             <Route path="/tnc" element={
               <ProtectedRoute roles={['tnc', 'admin']}><TNCDashboard /></ProtectedRoute>
+            } />
+            <Route path="/tnc/invitations" element={
+              <ProtectedRoute roles={['tnc', 'admin']}><TNCInvitationsPage /></ProtectedRoute>
             } />
             <Route path="/tnc/reports" element={
               <ProtectedRoute roles={['tnc', 'admin']}><TNCEventReportsPage /></ProtectedRoute>

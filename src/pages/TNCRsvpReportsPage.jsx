@@ -8,6 +8,7 @@ import { getAdminStats, getTncRsvpData, getEvents } from '../lib/db'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
+  { path: '/tnc/invitations', label: 'TNC Invites', icon: '💌' },
   { path: '/tnc/reports', label: 'Event Reports', icon: '📊' },
   { path: '/tnc/individual', label: 'Individual Reports', icon: '👤' },
   { path: '/tnc/rsvp', label: 'RSVP Reports', icon: '✉️' },

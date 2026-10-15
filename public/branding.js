@@ -44,18 +44,17 @@
       dark = lum < 128;
     }
 
-    var a = document.createElement('a');
-    a.id = 'ats-credit';
-    a.className = 'ats-credit ' + (dark ? 'ats-on-dark' : 'ats-on-light');
-    a.href = WA_URL;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.setAttribute('aria-label', 'Chat with Ameroids Tech Studio on WhatsApp: ' + PHONE_DISPLAY);
-    a.innerHTML =
-      '<span>Developed by <strong>Ameroids Tech Studio</strong></span>' +
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + WA_ICON + '"/></svg>' +
-      '<span>For queries:&nbsp;' + PHONE_DISPLAY + '</span>';
-    document.body.appendChild(a);
+    var div = document.createElement('div');
+    div.id = 'ats-credit';
+    div.className = 'ats-credit ' + (dark ? 'ats-on-dark' : 'ats-on-light');
+    div.innerHTML =
+      '<span>Developed by <a href="https://ameroids.in" target="_blank" rel="noopener noreferrer" style="text-decoration:none;color:inherit;"><strong>Ameroids Tech Studio</strong></a></span>' +
+      '<span style="opacity:0.4;">•</span>' +
+      '<a href="' + WA_URL + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:none;" aria-label="Chat with Ameroids Tech Studio on WhatsApp: ' + PHONE_DISPLAY + '">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:middle;"><path d="' + WA_ICON + '"/></svg>' +
+        '<span>' + PHONE_DISPLAY + '</span>' +
+      '</a>';
+    document.body.appendChild(div);
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', addCredit);

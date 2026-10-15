@@ -72,7 +72,7 @@ export default function RSVPSplash() {
         <div className="rsvp-u"><b>{time.s}</b><small>Seconds</small></div>
       </div>
       <p className="rsvp-ask">Kindly confirm your presence.</p>
-      <div className="rsvp-credit">Developed by<b>Ameroids Tech Studio</b></div>
+      <div className="rsvp-credit">Developed by<a href="https://ameroids.in" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}><b>Ameroids Tech Studio</b></a></div>
       <div className="rsvp-bar"></div>
     </div>
   );

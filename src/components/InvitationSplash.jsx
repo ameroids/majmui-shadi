@@ -50,7 +50,7 @@ export default function InvitationSplash() {
               <h1>Majmui Shaadi</h1>
               <div className="orn"><i></i><b></b><i></i></div>
               <p>Every family,<br />personally invited.</p>
-              <small>Developed by<b>Ameroids Tech Studio</b></small>
+              <small>Developed by<a href="https://ameroids.in" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}><b>Ameroids Tech Studio</b></a></small>
             </div>
           </div>
           <div className="pk">
