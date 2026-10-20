@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from './Logo'
 import { useAuth } from '../context/AuthContext'
+import LegalModal from './LegalModal'
 
 export default function DashboardLayout({ children, navItems = [], activePath, roleLabel }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [legalOpen, setLegalOpen] = useState(false)
+  const [legalTab, setLegalTab] = useState('terms')
 
   const handleLogout = () => {
     logout()
@@ -77,6 +80,30 @@ export default function DashboardLayout({ children, navItems = [], activePath, r
 
         <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 min-w-0 animate-slide-up">{children}</main>
       </div>
+
+      <footer className="mt-auto border-t border-ivory-line bg-white/40 py-4 px-4 text-center text-xs text-ink/50 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+        <span>© {new Date().getFullYear()} Majmui Shaadi Portal</span>
+        <span className="hidden sm:inline">•</span>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => { setLegalTab('terms'); setLegalOpen(true) }}
+            className="hover:text-emerald-deep hover:underline transition"
+          >
+            Terms & Conditions
+          </button>
+          <span>•</span>
+          <button
+            type="button"
+            onClick={() => { setLegalTab('privacy'); setLegalOpen(true) }}
+            className="hover:text-emerald-deep hover:underline transition"
+          >
+            Privacy Policy
+          </button>
+        </div>
+      </footer>
+
+      <LegalModal isOpen={legalOpen} onClose={() => setLegalOpen(false)} initialTab={legalTab} />
     </div>
   )
 }

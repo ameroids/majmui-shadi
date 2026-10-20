@@ -8,13 +8,15 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authenticate } from '../lib/db'
 import SplashIntro from '../components/SplashIntro'
-
+import LegalModal from '../components/LegalModal'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [legalOpen, setLegalOpen] = useState(false)
+  const [legalTab, setLegalTab] = useState('terms')
   const { login } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -137,10 +139,28 @@ export default function LoginPage() {
               </div>
             </form>
 
+            <div className="mt-8 pt-4 border-t border-ivory-line flex items-center justify-center gap-3 text-xs text-ink/60">
+              <button
+                type="button"
+                onClick={() => { setLegalTab('terms'); setLegalOpen(true) }}
+                className="hover:text-emerald-deep hover:underline transition"
+              >
+                Terms & Conditions
+              </button>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => { setLegalTab('privacy'); setLegalOpen(true) }}
+                className="hover:text-emerald-deep hover:underline transition"
+              >
+                Privacy Policy
+              </button>
+            </div>
           </Card>
         </div>
       </div>
     </div>
+    <LegalModal isOpen={legalOpen} onClose={() => setLegalOpen(false)} initialTab={legalTab} />
     </>
   )
 }

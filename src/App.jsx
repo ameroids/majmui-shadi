@@ -20,6 +20,7 @@ import SendRsvpPage from './pages/SendRsvpPage'
 import PrintRosterPage from './pages/PrintRosterPage'
 
 import AccountsDashboard from './pages/AccountsDashboard'
+import LegalPage from './pages/LegalPage'
 import InvitationSplash from './components/InvitationSplash'
 import RSVPSplash from './components/RSVPSplash'
 
@@ -30,6 +31,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+            <Route path="/terms" element={<LegalPage initialTab="terms" />} />
+            <Route path="/privacy" element={<LegalPage initialTab="privacy" />} />
             <Route path="/confirm/:id" element={<><InvitationSplash /><ConfirmationPage /></>} />
             <Route path="/rsvp/:id" element={<><RSVPSplash /><RSVPPage /></>} />
 
