@@ -10,7 +10,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
-  searchFamiliesByName, createManualFamily, updateManualFamily,
+  searchFamiliesByName, createManualFamily, updateManualFamily, checkExistingMembersByIts,
   saveInvitees, getFamiliesWithInviteesForUser, removeInvitee,
   getEvents, createInvitation, getInvitationsByUser,
   updateInvitationStatus, updateInvitationMessage
@@ -187,8 +187,28 @@ export default function TNCInvitationsPage() {
       return
     }
 
+    const memberItsList = manualMembers.map((m) => (m.member_its || '').trim()).filter(Boolean)
+    const seenIts = new Set()
+    for (const its of memberItsList) {
+      if (seenIts.has(its)) {
+        setManualError(`Member ITS "${its}" is entered more than once in this form.`)
+        return
+      }
+      seenIts.add(its)
+    }
+
     setSavingGuest(true)
     try {
+      // Check if any member ITS already exists in the database
+      const existingMembers = await checkExistingMembersByIts(memberItsList)
+      if (existingMembers && existingMembers.length > 0) {
+        const dup = existingMembers[0]
+        const famName = dup.families?.surname ? ` (${dup.families.surname} family)` : ''
+        setManualError(`Member with ITS "${dup.member_its}" already exists in the database${famName}! Please search for the family using the search bar above instead.`)
+        setSavingGuest(false)
+        return
+      }
+
       const newFamily = await createManualFamily({
         hof_its: manualHofIts.trim(),
         surname: manualSurname.trim(),
@@ -202,7 +222,11 @@ export default function TNCInvitationsPage() {
       setManualHofIts('')
       setManualMembers([emptyManualMember()])
     } catch (err) {
-      setManualError(err.message || 'Error creating family')
+      if (err.message?.includes('families_hof_its_key')) {
+        setManualError(`A family with HOF ITS "${manualHofIts}" already exists! Please search for it using the search bar above instead of creating it manually.`)
+      } else {
+        setManualError(err.message || 'Error creating family')
+      }
     } finally {
       setSavingGuest(false)
     }

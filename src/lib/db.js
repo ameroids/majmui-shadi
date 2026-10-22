@@ -208,6 +208,28 @@ export async function searchFamiliesByName(nameQuery) {
 }
 
 
+export async function checkExistingMembersByIts(itsList, excludeFamilyId = null) {
+  if (!itsList || itsList.length === 0) return []
+  const cleanList = itsList.map((its) => String(its || '').trim()).filter(Boolean)
+  if (cleanList.length === 0) return []
+
+  let query = supabase
+    .from('family_members')
+    .select('id, member_its, full_name, family_id, families(id, surname, hof_its)')
+    .in('member_its', cleanList)
+
+  if (excludeFamilyId) {
+    query = query.neq('family_id', excludeFamilyId)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('checkExistingMembersByIts error:', error)
+    return []
+  }
+  return data || []
+}
+
 export async function createManualFamily({ hof_its, surname, members }) {
   const { data: family, error: famError } = await supabase
     .from('families')

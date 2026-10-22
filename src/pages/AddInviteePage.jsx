@@ -8,7 +8,7 @@ import { Field, Input, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { searchFamiliesByName, createManualFamily, updateManualFamily, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
+import { searchFamiliesByName, createManualFamily, updateManualFamily, checkExistingMembersByIts, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
 import Modal from '../components/ui/Modal'
 
 const NAV = [
@@ -199,11 +199,28 @@ export default function AddInviteePage() {
       return
     }
 
-    const currentFamilyMembersCount = editingFamilyId ? (myFamilies.find(f => f.family_id === editingFamilyId)?.members?.length || 0) : 0
-    const additionalMembers = manualMembers.length - currentFamilyMembersCount
+    const memberItsList = manualMembers.map((m) => (m.member_its || '').trim()).filter(Boolean)
+    const seenIts = new Set()
+    for (const its of memberItsList) {
+      if (seenIts.has(its)) {
+        setManualError(`Member ITS "${its}" is entered more than once in this form.`)
+        return
+      }
+      seenIts.add(its)
+    }
 
     setSaving(true)
     try {
+      // Check if any member ITS already exists in the database
+      const existingMembers = await checkExistingMembersByIts(memberItsList, editingFamilyId)
+      if (existingMembers && existingMembers.length > 0) {
+        const dup = existingMembers[0]
+        const famName = dup.families?.surname ? ` (${dup.families.surname} family)` : ''
+        setManualError(`Member with ITS "${dup.member_its}" already exists in the database${famName}! Please search for the family using the search bar above instead.`)
+        setSaving(false)
+        return
+      }
+
       if (editingFamilyId) {
         const updatedFamily = await updateManualFamily(editingFamilyId, {
           hof_its: manualHofIts.trim(),
