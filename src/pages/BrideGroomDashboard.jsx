@@ -34,14 +34,24 @@ export default function BrideGroomDashboard() {
   useEffect(() => {
     let alive = true
     async function load() {
-      const [s, inv, evts, pv] = await Promise.all([getUserStats(user.id), getInvitationsByUser(user.id), getEvents(), getGlobalPhaseVisibility()])
-      if (!alive) return
-      setStats(s)
-      setInvitations(inv)
-      setEvents(evts)
-      setPhaseVisibility(pv)
-      sessionStorage.setItem('phase_visibility', JSON.stringify(pv))
-      setLoading(false)
+      try {
+        const [inv, evts, pv] = await Promise.all([
+          getInvitationsByUser(user.id),
+          getEvents(),
+          getGlobalPhaseVisibility()
+        ])
+        const s = await getUserStats(user.id, inv)
+        if (!alive) return
+        setStats(s || {})
+        setInvitations(inv || [])
+        setEvents(evts || [])
+        setPhaseVisibility(pv || { phase_1_visible: true, phase_2_visible: true, phase_3_visible: true })
+        if (pv) sessionStorage.setItem('phase_visibility', JSON.stringify(pv))
+      } catch (err) {
+        console.error('Failed to load dashboard:', err)
+      } finally {
+        if (alive) setLoading(false)
+      }
     }
     load()
     return () => { alive = false }
@@ -220,11 +230,57 @@ export default function BrideGroomDashboard() {
                     Manage Confirmations →
                   </Button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <StatCard label="Confirmed" value={stats.confirmed || 0} />
-                  <StatCard label="Declined" value={stats.declined || 0} />
-                  <StatCard label="Pending" value={stats.pendingConfirmations || 0} />
-                </div>
+
+                {/* Breakdown by Event */}
+                {events.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {events.map((e) => {
+                      const isVevaan = isVevaanEvent(user.role, e.event_name)
+                      const evStat = stats.eventStats?.[e.id] || { confirmed: 0, declined: 0, pendingConfirmations: 0 }
+                      return (
+                        <Card 
+                          key={e.id} 
+                          className={`p-4 border transition ${
+                            isVevaan 
+                              ? 'bg-gradient-to-br from-purple-50/70 to-indigo-50/40 border-purple-200' 
+                              : 'bg-white border-ivory-line'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3 border-b border-ivory-line pb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`font-semibold text-sm ${isVevaan ? 'text-purple-950' : 'text-ink'}`}>
+                                {e.event_name}
+                              </span>
+                              {isVevaan && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-700 text-white">
+                                  Vevaan
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-medium text-ink/50">
+                              {stats.seatsPerEvent?.[e.id] || 0} Invited
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100">
+                              <div className="text-[10px] font-semibold text-emerald-800 uppercase">Confirmed</div>
+                              <div className="font-display text-lg font-bold text-emerald-700">{evStat.confirmed}</div>
+                            </div>
+                            <div className="bg-rose-50 rounded-lg p-2 border border-rose-100">
+                              <div className="text-[10px] font-semibold text-rose-800 uppercase">Declined</div>
+                              <div className="font-display text-lg font-bold text-rose-700">{evStat.declined}</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-2 border border-amber-100">
+                              <div className="text-[10px] font-semibold text-amber-800 uppercase">Pending</div>
+                              <div className="font-display text-lg font-bold text-amber-700">{evStat.pendingConfirmations}</div>
+                            </div>
+                          </div>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+
                 {stats.declined > 0 && (
                   <div className="mt-4 p-4 bg-emerald-soft/30 rounded-xl border border-emerald-soft flex items-center justify-between">
                     <p className="text-emerald-deep font-medium">
@@ -245,13 +301,60 @@ export default function BrideGroomDashboard() {
             {/* Phase 4: RSVPs */}
             {phaseVisibility.phase_3_visible && (
               <section>
-              <h2 className="font-display text-2xl font-semibold text-emerald-deep mb-4">Phase 4: RSVPs</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <StatCard label="Attending" value={stats.attending || 0} />
-                <StatCard label="Not Attending" value={stats.notAttending || 0} />
-                <StatCard label="Pending RSVPs" value={stats.pendingRsvps || 0} />
-              </div>
-            </section>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h2 className="font-display text-2xl font-semibold text-emerald-deep">Phase 4: RSVPs</h2>
+                </div>
+
+                {/* Breakdown by Event */}
+                {events.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {events.map((e) => {
+                      const isVevaan = isVevaanEvent(user.role, e.event_name)
+                      const evStat = stats.eventStats?.[e.id] || { attending: 0, notAttending: 0, pendingRsvps: 0 }
+                      return (
+                        <Card 
+                          key={e.id} 
+                          className={`p-4 border transition ${
+                            isVevaan 
+                              ? 'bg-gradient-to-br from-purple-50/70 to-indigo-50/40 border-purple-200' 
+                              : 'bg-white border-ivory-line'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3 border-b border-ivory-line pb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`font-semibold text-sm ${isVevaan ? 'text-purple-950' : 'text-ink'}`}>
+                                {e.event_name}
+                              </span>
+                              {isVevaan && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-700 text-white">
+                                  Vevaan
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-medium text-ink/50">
+                              {stats.seatsPerEvent?.[e.id] || 0} Invited
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100">
+                              <div className="text-[10px] font-semibold text-emerald-800 uppercase">Attending</div>
+                              <div className="font-display text-lg font-bold text-emerald-700">{evStat.attending}</div>
+                            </div>
+                            <div className="bg-rose-50 rounded-lg p-2 border border-rose-100">
+                              <div className="text-[10px] font-semibold text-rose-800 uppercase">Not Attending</div>
+                              <div className="font-display text-lg font-bold text-rose-700">{evStat.notAttending}</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-2 border border-amber-100">
+                              <div className="text-[10px] font-semibold text-amber-800 uppercase">Pending</div>
+                              <div className="font-display text-lg font-bold text-amber-700">{evStat.pendingRsvps}</div>
+                            </div>
+                          </div>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
             )}
           </div>
         </>

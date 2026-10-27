@@ -788,48 +788,43 @@ export async function getEventGuestData() {
   return result
 }
 
-export async function getUserStats(userId) {
-  const invitees = await getInviteesByUser(userId)
-  const invitations = await getInvitationsByUser(userId)
+export async function getUserStats(userId, preloadedInvitations = null) {
+  const inviteesPromise = getInviteesByUser(userId)
+  const invitationsPromise = preloadedInvitations ? Promise.resolve(preloadedInvitations) : getInvitationsByUser(userId)
+  const userRecPromise = supabase.from('users').select('extra_thaals').eq('id', userId).single()
+
+  const [invitees, invitations, { data: userRec }] = await Promise.all([
+    inviteesPromise,
+    invitationsPromise,
+    userRecPromise
+  ])
   
   const families = new Set(invitees.map((i) => i.family_id))
   
-  // Calculate RSVPs from invitation_member_events
-  const { data: userInvs } = await supabase.from('invitations').select('id, status').eq('bride_groom_user_id', userId)
-  const validInvIds = userInvs ? userInvs.map(i => i.id) : []
-  const trackedInvIds = userInvs ? userInvs.filter(i => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id) : []
-  const phase4InvIds = new Set(userInvs ? userInvs.filter(i => ['RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id) : [])
+  // Calculate RSVPs directly from invitations already fetched
+  const userInvs = invitations || []
+  const validInvIds = userInvs.map(i => i.id)
+  const trackedInvIds = userInvs.filter(i => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id)
+  const phase4InvIds = new Set(userInvs.filter(i => ['RSVP Sent', 'RSVPed'].includes(i.status)).map(i => i.id))
 
+  // Extract member_events directly from pre-resolved invitations to avoid redundant network round-trips!
   let rsvps = []
-  if (validInvIds.length > 0) {
-    const { data } = await supabase
-      .from('invitation_member_events')
-      .select('invitee_id, event_id, rsvp_status, invitation_id, invitees (member_id)')
-      .in('invitation_id', validInvIds)
-    if (data) rsvps = data
-  }
-
-  // Global Sync for user stats
-  const memberIds = [...new Set(rsvps.map(r => r.invitees?.member_id).filter(Boolean))]
-  const globalStatusMap = {}
-  if (memberIds.length > 0) {
-    const { data: globalResponses } = await supabase
-      .from('invitation_member_events')
-      .select('event_id, rsvp_status, invitees!inner(member_id)')
-      .in('invitees.member_id', memberIds)
-      .neq('rsvp_status', 'Pending')
-
-    if (globalResponses && globalResponses.length > 0) {
-      globalResponses.forEach(r => {
-        if (r.invitees?.member_id && r.rsvp_status) {
-          globalStatusMap[`${r.invitees.member_id}_${r.event_id}`] = r.rsvp_status
-        }
+  userInvs.forEach(inv => {
+    (inv.member_events || []).forEach(ime => {
+      rsvps.push({
+        invitee_id: ime.invitees?.id,
+        event_id: ime.events?.id,
+        rsvp_status: ime.rsvp_status,
+        invitation_id: inv.id,
+        invitees: ime.invitees
       })
-    }
-  }
+    })
+  })
 
   const seatsPerEvent = {}
   const personRsvps = new Map()
+  const eventStatsMap = {} // event_id -> { confirmed: 0, declined: 0, pendingConfirmations: 0, attending: 0, notAttending: 0, pendingRsvps: 0 }
+
   if (rsvps) {
     rsvps.forEach(r => {
       let currentStatus = r.rsvp_status || 'Pending'
@@ -843,6 +838,17 @@ export async function getUserStats(userId) {
       // Track seats per event for ALL invitations
       if (r.event_id) {
         seatsPerEvent[r.event_id] = (seatsPerEvent[r.event_id] || 0) + 1
+        
+        if (!eventStatsMap[r.event_id]) {
+          eventStatsMap[r.event_id] = {
+            confirmed: 0,
+            declined: 0,
+            pendingConfirmations: 0,
+            attending: 0,
+            notAttending: 0,
+            pendingRsvps: 0
+          }
+        }
       }
 
       // ONLY track stats for invitations that have been sent
@@ -854,18 +860,36 @@ export async function getUserStats(userId) {
         const isPhase4 = phase4InvIds.has(r.invitation_id)
         if (isPhase4) s.hasPhase4Inv = true
         
+        const evStats = r.event_id ? eventStatsMap[r.event_id] : null
+
         if (currentStatus === 'Attending') {
-          if (isPhase4) s.attending++
-          else s.confirmed++
+          if (isPhase4) {
+            s.attending++
+            if (evStats) { evStats.attending++; evStats.confirmed++ }
+          } else {
+            s.confirmed++
+            if (evStats) evStats.confirmed++
+          }
         } else if (currentStatus === 'Not Attending') {
-          if (isPhase4) s.notAttending++
-          else s.declined++
+          if (isPhase4) {
+            s.notAttending++
+            if (evStats) evStats.notAttending++
+          } else {
+            s.declined++
+            if (evStats) evStats.declined++
+          }
         } else if (currentStatus === 'Confirmed') {
           s.confirmed++
+          if (evStats) evStats.confirmed++
         } else if (currentStatus === 'Declined') {
           s.declined++
+          if (evStats) evStats.declined++
         } else {
           s.pending++
+          if (evStats) {
+            if (isPhase4) evStats.pendingRsvps++
+            else evStats.pendingConfirmations++
+          }
         }
       }
     })
@@ -908,10 +932,6 @@ export async function getUserStats(userId) {
     }
   })
 
-
-
-  const { data: userRec } = await supabase.from('users').select('extra_thaals').eq('id', userId).single()
-
   return {
     totalInvitees: invitees.length,
     totalFamilies: families.size,
@@ -926,6 +946,7 @@ export async function getUserStats(userId) {
     pendingConfirmations,
     totalSeatsConsumed: rsvps.filter(r => r.rsvp_status !== 'Not Attending' && r.rsvp_status !== 'Declined').length,
     seatsPerEvent,
+    eventStats: eventStatsMap,
     extra_thaals: userRec?.extra_thaals || 0
   }
 }
