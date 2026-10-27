@@ -207,6 +207,28 @@ export async function searchFamiliesByName(nameQuery) {
   }
 }
 
+export async function getFamilyWithMembersById(familyId) {
+  if (!familyId) return null
+  const { data, error } = await supabase
+    .from('families')
+    .select('id, hof_its, surname, is_manual, family_members(*)')
+    .eq('id', familyId)
+    .single()
+
+  if (error || !data) {
+    console.error('Error fetching family by id:', error)
+    return null
+  }
+
+  return {
+    id: data.id,
+    hof_its: data.hof_its,
+    surname: data.surname,
+    is_manual: data.is_manual,
+    members: data.family_members || []
+  }
+}
+
 
 export async function checkExistingMembersByIts(itsList, excludeFamilyId = null) {
   if (!itsList || itsList.length === 0) return []

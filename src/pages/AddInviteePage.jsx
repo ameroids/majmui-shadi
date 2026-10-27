@@ -8,7 +8,7 @@ import { Field, Input, Checkbox } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { searchFamiliesByName, createManualFamily, updateManualFamily, checkExistingMembersByIts, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
+import { searchFamiliesByName, getFamilyWithMembersById, createManualFamily, updateManualFamily, checkExistingMembersByIts, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
 import Modal from '../components/ui/Modal'
 
 const NAV = [
@@ -125,6 +125,23 @@ export default function AddInviteePage() {
       mobiles[m.id] = alreadyInvited?.mobile || ''
     })
     setMemberMobiles(mobiles)
+  }
+
+  const handleEditMyFamily = async (familyId) => {
+    setSearching(true)
+    setSearched(true)
+    setShowManualForm(false)
+    setEditingFamilyId(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    
+    const fam = await getFamilyWithMembersById(familyId)
+    setSearching(false)
+    if (fam) {
+      setSearchQuery(fam.surname)
+      handleSelectFamily(fam)
+    } else {
+      showToast('Could not load family details.', 'error')
+    }
   }
 
   const toggleMember = (memberId) => {
@@ -460,10 +477,7 @@ export default function AddInviteePage() {
                 <h3 className="font-display text-lg font-semibold text-emerald-deep">{f.surname}</h3>
                 <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => {
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                      handleSearch(f.surname)
-                    }}
+                    onClick={() => handleEditMyFamily(f.family_id)}
                     className="text-xs font-semibold text-emerald-deep hover:text-emerald tap-target"
                   >
                     Edit
