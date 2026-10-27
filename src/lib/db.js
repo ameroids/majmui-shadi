@@ -530,16 +530,61 @@ export async function getInvitationsByUser(userId) {
       *,
       families (surname, hof_its),
       family_members (full_name, mobile),
-      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile), events (id, event_name) )
+      invitation_member_events ( rsvp_status, invitees (id, member_id, full_name, mobile), events (id, event_name) )
     `)
     .eq('bride_groom_user_id', userId)
     .order('created_at', { ascending: false })
     
   if (error) return []
+
+  // Collect member_ids to check for any global responses across all invitations
+  const memberIds = new Set()
+  invitations.forEach(inv => {
+    (inv.invitation_member_events || []).forEach(ime => {
+      if (ime.invitees?.member_id) {
+        memberIds.add(ime.invitees.member_id)
+      }
+    })
+  })
+
+  // Global Sync: if an invitee already responded under another invitation link for this event, resolve it
+  const globalStatusMap = {}
+  if (memberIds.size > 0) {
+    const { data: globalResponses } = await supabase
+      .from('invitation_member_events')
+      .select('event_id, rsvp_status, invitees!inner(member_id)')
+      .in('invitees.member_id', Array.from(memberIds))
+      .neq('rsvp_status', 'Pending')
+
+    if (globalResponses && globalResponses.length > 0) {
+      globalResponses.forEach(r => {
+        if (r.invitees?.member_id && r.rsvp_status) {
+          globalStatusMap[`${r.invitees.member_id}_${r.event_id}`] = r.rsvp_status
+        }
+      })
+    }
+  }
   
   return invitations.map(inv => {
-    const uniqueInvitees = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.invitees?.id, ime.invitees])).values())
-    const uniqueEvents = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.events?.id, ime.events])).values())
+    // Reconcile pending statuses with any global confirmed/attending/declined response
+    const resolvedMemberEvents = (inv.invitation_member_events || []).map(ime => {
+      const memberId = ime.invitees?.member_id
+      const eventId = ime.events?.id
+      let status = ime.rsvp_status || 'Pending'
+      if (status === 'Pending' && memberId && eventId) {
+        const globalStatus = globalStatusMap[`${memberId}_${eventId}`]
+        if (globalStatus) {
+          status = globalStatus
+        }
+      }
+      return {
+        ...ime,
+        rsvp_status: status
+      }
+    })
+
+    const uniqueInvitees = Array.from(new Map(resolvedMemberEvents.map(ime => [ime.invitees?.id, ime.invitees])).values())
+    const uniqueEvents = Array.from(new Map(resolvedMemberEvents.map(ime => [ime.events?.id, ime.events])).values())
 
     return {
       ...inv,
@@ -551,7 +596,7 @@ export async function getInvitationsByUser(userId) {
       invitee_names: uniqueInvitees.map(i => i?.full_name).filter(Boolean).join(', '),
       event_ids: uniqueEvents.map(e => e?.id).filter(Boolean),
       event_names: uniqueEvents.map(e => e?.event_name).filter(Boolean).join(', '),
-      member_events: inv.invitation_member_events,
+      member_events: resolvedMemberEvents,
     }
   })
 }
@@ -564,15 +609,57 @@ export async function getAllInvitations() {
       users (display_name, username),
       families (surname, hof_its),
       family_members (full_name, mobile),
-      invitation_member_events ( rsvp_status, invitees (id, full_name, mobile, gender), events (id, event_name) )
+      invitation_member_events ( rsvp_status, invitees (id, member_id, full_name, mobile, gender), events (id, event_name) )
     `)
     .order('created_at', { ascending: false })
     
   if (error) return []
+
+  const memberIds = new Set()
+  invitations.forEach(inv => {
+    (inv.invitation_member_events || []).forEach(ime => {
+      if (ime.invitees?.member_id) {
+        memberIds.add(ime.invitees.member_id)
+      }
+    })
+  })
+
+  const globalStatusMap = {}
+  if (memberIds.size > 0) {
+    const { data: globalResponses } = await supabase
+      .from('invitation_member_events')
+      .select('event_id, rsvp_status, invitees!inner(member_id)')
+      .in('invitees.member_id', Array.from(memberIds))
+      .neq('rsvp_status', 'Pending')
+
+    if (globalResponses && globalResponses.length > 0) {
+      globalResponses.forEach(r => {
+        if (r.invitees?.member_id && r.rsvp_status) {
+          globalStatusMap[`${r.invitees.member_id}_${r.event_id}`] = r.rsvp_status
+        }
+      })
+    }
+  }
   
   return invitations.map(inv => {
-    const uniqueInvitees = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.invitees?.id, ime.invitees])).values())
-    const uniqueEvents = Array.from(new Map((inv.invitation_member_events || []).map(ime => [ime.events?.id, ime.events])).values())
+    const resolvedMemberEvents = (inv.invitation_member_events || []).map(ime => {
+      const memberId = ime.invitees?.member_id
+      const eventId = ime.events?.id
+      let status = ime.rsvp_status || 'Pending'
+      if (status === 'Pending' && memberId && eventId) {
+        const globalStatus = globalStatusMap[`${memberId}_${eventId}`]
+        if (globalStatus) {
+          status = globalStatus
+        }
+      }
+      return {
+        ...ime,
+        rsvp_status: status
+      }
+    })
+
+    const uniqueInvitees = Array.from(new Map(resolvedMemberEvents.map(ime => [ime.invitees?.id, ime.invitees])).values())
+    const uniqueEvents = Array.from(new Map(resolvedMemberEvents.map(ime => [ime.events?.id, ime.events])).values())
 
     return {
       ...inv,
@@ -586,7 +673,7 @@ export async function getAllInvitations() {
       invitee_names: uniqueInvitees.map(i => i?.full_name).filter(Boolean).join(', '),
       event_ids: uniqueEvents.map(e => e?.id).filter(Boolean),
       event_names: uniqueEvents.map(e => e?.event_name).filter(Boolean).join(', '),
-      member_events: inv.invitation_member_events,
+      member_events: resolvedMemberEvents,
     }
   })
 }
@@ -717,15 +804,42 @@ export async function getUserStats(userId) {
   if (validInvIds.length > 0) {
     const { data } = await supabase
       .from('invitation_member_events')
-      .select('invitee_id, event_id, rsvp_status, invitation_id')
+      .select('invitee_id, event_id, rsvp_status, invitation_id, invitees (member_id)')
       .in('invitation_id', validInvIds)
     if (data) rsvps = data
+  }
+
+  // Global Sync for user stats
+  const memberIds = [...new Set(rsvps.map(r => r.invitees?.member_id).filter(Boolean))]
+  const globalStatusMap = {}
+  if (memberIds.length > 0) {
+    const { data: globalResponses } = await supabase
+      .from('invitation_member_events')
+      .select('event_id, rsvp_status, invitees!inner(member_id)')
+      .in('invitees.member_id', memberIds)
+      .neq('rsvp_status', 'Pending')
+
+    if (globalResponses && globalResponses.length > 0) {
+      globalResponses.forEach(r => {
+        if (r.invitees?.member_id && r.rsvp_status) {
+          globalStatusMap[`${r.invitees.member_id}_${r.event_id}`] = r.rsvp_status
+        }
+      })
+    }
   }
 
   const seatsPerEvent = {}
   const personRsvps = new Map()
   if (rsvps) {
     rsvps.forEach(r => {
+      let currentStatus = r.rsvp_status || 'Pending'
+      if (currentStatus === 'Pending' && r.invitees?.member_id && r.event_id) {
+        const globalStatus = globalStatusMap[`${r.invitees.member_id}_${r.event_id}`]
+        if (globalStatus) {
+          currentStatus = globalStatus
+        }
+      }
+
       // Track seats per event for ALL invitations
       if (r.event_id) {
         seatsPerEvent[r.event_id] = (seatsPerEvent[r.event_id] || 0) + 1
@@ -740,15 +854,15 @@ export async function getUserStats(userId) {
         const isPhase4 = phase4InvIds.has(r.invitation_id)
         if (isPhase4) s.hasPhase4Inv = true
         
-        if (r.rsvp_status === 'Attending') {
+        if (currentStatus === 'Attending') {
           if (isPhase4) s.attending++
           else s.confirmed++
-        } else if (r.rsvp_status === 'Not Attending') {
+        } else if (currentStatus === 'Not Attending') {
           if (isPhase4) s.notAttending++
           else s.declined++
-        } else if (r.rsvp_status === 'Confirmed') {
+        } else if (currentStatus === 'Confirmed') {
           s.confirmed++
-        } else if (r.rsvp_status === 'Declined') {
+        } else if (currentStatus === 'Declined') {
           s.declined++
         } else {
           s.pending++
