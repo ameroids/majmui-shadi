@@ -828,12 +828,6 @@ export async function getUserStats(userId, preloadedInvitations = null) {
   if (rsvps) {
     rsvps.forEach(r => {
       let currentStatus = r.rsvp_status || 'Pending'
-      if (currentStatus === 'Pending' && r.invitees?.member_id && r.event_id) {
-        const globalStatus = globalStatusMap[`${r.invitees.member_id}_${r.event_id}`]
-        if (globalStatus) {
-          currentStatus = globalStatus
-        }
-      }
 
       // Track seats per event for ALL invitations
       if (r.event_id) {

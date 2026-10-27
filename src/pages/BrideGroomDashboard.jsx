@@ -76,7 +76,7 @@ export default function BrideGroomDashboard() {
         <div className="mt-4 max-w-xs"><ArchMotif height={10} /></div>
       </div>
 
-      {loading ? (
+      {loading || !stats ? (
         <PageLoader label="Loading your dashboard…" />
       ) : (
         <>
