@@ -103,7 +103,13 @@ export default function PrintRosterPage() {
                   <td className="border border-gray-300 px-3 py-1.5 font-mono text-xs">{m.mobile || '-'}</td>
                   <td className="border border-gray-300 px-3 py-1.5">
                     {m.invitation_member_events?.length > 0 
-                      ? m.invitation_member_events.map(e => events.find(ev => ev.id === e.event_id)?.event_name).filter(Boolean).join(', ')
+                      ? m.invitation_member_events.map(e => {
+                          const ev = events.find(item => item.id === e.event_id)
+                          if (!ev) return null
+                          const isVevaan = (user?.role === 'groom' && (ev.event_name.toLowerCase().includes('paan') || ev.event_name.toLowerCase().includes('gulab'))) ||
+                                           (user?.role === 'bride' && (ev.event_name.toLowerCase().includes('walima') || ev.event_name.toLowerCase().includes('valima')))
+                          return isVevaan ? `${ev.event_name} (Vevaan)` : ev.event_name
+                        }).filter(Boolean).join(', ')
                       : <span className="italic text-gray-500">None yet</span>
                     }
                   </td>

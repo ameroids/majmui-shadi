@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Logo from '../components/Logo'
 import ArchMotif from '../components/ArchMotif'
 import CardCarousel from '../components/CardCarousel'
+import { isVevaanEvent } from '../lib/vevaan'
 
 export default function ConfirmationPage() {
   const { id } = useParams()
@@ -208,11 +209,28 @@ export default function ConfirmationPage() {
                       {invitee.events?.map(ev => {
                         const status = responses[ev.junction_id] || 'Pending'
                         const isLocked = lockedResponses[ev.junction_id]
+                        const isVevaan = isVevaanEvent(invitation?.invited_by_role, ev.event_name)
                         
                         return (
-                          <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div 
+                            key={ev.junction_id} 
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl transition-all duration-200 ${
+                              isVevaan 
+                                ? 'bg-gradient-to-r from-purple-100/90 via-purple-50/70 to-indigo-50/40 border-l-4 border-purple-600 shadow-sm border border-purple-200' 
+                                : 'hover:bg-white/40'
+                            }`}
+                          >
                             <div>
-                              <span className="font-medium text-ink/80">{ev.event_name}</span>
+                              <div className="flex items-center gap-2.5">
+                                <span className={`font-medium ${isVevaan ? 'text-purple-950 font-semibold text-base' : 'text-ink/80'}`}>
+                                  {ev.event_name}
+                                </span>
+                                {isVevaan && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-700 text-white shadow-xs tracking-wide">
+                                    Vevaan
+                                  </span>
+                                )}
+                              </div>
                               {isLocked && (
                                 <div className="text-xs font-medium text-ink/50 mt-1">
                                   Already responded: {status === 'Attending' || status === 'Confirmed' ? 'Plan to Attend' : 'Cannot Attend'}

@@ -12,6 +12,7 @@ import {
   getEvents, getInvitationsByUser, updateInvitationStatus
 } from '../lib/db'
 import { buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
+import { hasVevaanEvent } from '../lib/vevaan'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -129,7 +130,9 @@ export default function SendRsvpPage() {
               <tbody>
                 {invitations.map((inv) => (
                   <tr key={inv.id} className="border-b border-ivory-line last:border-0">
-                    <td className="py-3 px-4 font-medium text-ink">{inv.surname}</td>
+                    <td className="py-3 px-4 font-medium text-ink">
+                      <span>{inv.surname}</span>
+                    </td>
                     <td className="py-3 px-4 text-ink/70">{inv.invitee_ids.length}</td>
                     <td className="py-3 px-4 text-ink/70">{inv.event_names}</td>
                     <td className="py-3 px-4 text-ink/70">

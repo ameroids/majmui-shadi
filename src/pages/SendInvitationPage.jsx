@@ -14,6 +14,7 @@ import {
   getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, getUserStats
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
+import { isVevaanEvent, hasVevaanEvent } from '../lib/vevaan'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -174,7 +175,9 @@ export default function SendInvitationPage() {
               <tbody>
                 {invitations.map((inv) => (
                   <tr key={inv.id} className="border-b border-ivory-line last:border-0">
-                    <td className="py-3 px-4 font-medium text-ink">{inv.surname}</td>
+                    <td className="py-3 px-4 font-medium text-ink">
+                      <span>{inv.surname}</span>
+                    </td>
                     <td className="py-3 px-4 text-ink/70">{inv.invitee_ids.length}</td>
                     <td className="py-3 px-4 text-ink/70">{inv.event_names}</td>
                     <td className="py-3 px-4 text-ink/70">
@@ -363,6 +366,7 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
       brideName,
       groomName,
       senderName: userName,
+      userRole,
     })
     setMessage(msg)
     setStep(2)
@@ -473,11 +477,21 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
                 <tr>
                   <th className="py-3 px-4 text-left font-semibold text-ink/70">Member</th>
                   <th className="py-3 px-4 text-center font-semibold text-ink/70">Representative</th>
-                  {events.map(e => (
-                    <th key={e.id} className="py-3 px-4 text-center font-semibold text-ink/70 whitespace-nowrap">
-                      {e.event_name}
-                    </th>
-                  ))}
+                  {events.map(e => {
+                    const isVevaan = isVevaanEvent(user?.role, e.event_name)
+                    return (
+                      <th key={e.id} className="py-3 px-4 text-center font-semibold text-ink/70 whitespace-nowrap">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{e.event_name}</span>
+                          {isVevaan && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                              Vevaan
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-ivory-line">

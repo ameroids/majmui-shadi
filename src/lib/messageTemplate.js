@@ -26,7 +26,9 @@ export function setTemplate(template) {
   localStorage.setItem(TEMPLATE_KEY, template)
 }
 
-export function generateMessage({ recipientName, activeMembers, events, memberEvents, brideName, groomName, senderName }) {
+import { isVevaanEvent } from './vevaan'
+
+export function generateMessage({ recipientName, activeMembers, events, memberEvents, brideName, groomName, senderName, userRole }) {
   const template = getTemplate()
   
   const memberMap = Object.fromEntries(activeMembers.map(m => [m.id, m.full_name]))
@@ -39,7 +41,9 @@ export function generateMessage({ recipientName, activeMembers, events, memberEv
       
     if (attendees.length === 0) return null
     
-    const eventHeader = `✨ *${e.event_name}*${e.event_date ? ` (${formatDate(e.event_date)}${e.event_time ? `, ${e.event_time}` : ''})` : ''}${e.venue ? ` @ ${e.venue}` : ''}`
+    const isVevaan = isVevaanEvent(userRole, e.event_name)
+    const vevaanBadge = isVevaan ? ' *(Vevaan)*' : ''
+    const eventHeader = `✨ *${e.event_name}*${vevaanBadge}${e.event_date ? ` (${formatDate(e.event_date)}${e.event_time ? `, ${e.event_time}` : ''})` : ''}${e.venue ? ` @ ${e.venue}` : ''}`
     const membersList = attendees.map(name => `  • ${name}`).join('\n')
     return `${eventHeader}\n${membersList}`
   }).filter(Boolean).join('\n\n')

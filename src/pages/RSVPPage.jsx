@@ -5,6 +5,7 @@ import Button from '../components/ui/Button'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import ArchMotif from '../components/ArchMotif'
 import CardCarousel from '../components/CardCarousel'
+import { isVevaanEvent } from '../lib/vevaan'
 
 export default function RSVPPage() {
   const { id } = useParams()
@@ -213,10 +214,30 @@ export default function RSVPPage() {
                 <div key={invitee.id} className="p-4 rounded-lg border border-gray-100 bg-gray-50 mb-4">
                   <h3 className="font-semibold text-gray-900 mb-3 text-lg border-b pb-2">{invitee.full_name}</h3>
                   <div className="space-y-3">
-                    {invitee.events.map(ev => (
-                      <div key={ev.junction_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <span className="text-gray-700 font-medium">{ev.event_name}</span>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {invitee.events.map(ev => {
+                      const isVevaan = isVevaanEvent(invitation?.invited_by_role, ev.event_name)
+                      return (
+                        <div 
+                          key={ev.junction_id} 
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl transition-all duration-200 ${
+                            isVevaan 
+                              ? 'bg-gradient-to-r from-purple-100/90 via-purple-50/70 to-indigo-50/40 border-l-4 border-purple-600 shadow-sm border border-purple-200' 
+                              : 'hover:bg-white/40'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center gap-2.5">
+                              <span className={`font-medium ${isVevaan ? 'text-purple-950 font-semibold text-base' : 'text-gray-700'}`}>
+                                {ev.event_name}
+                              </span>
+                              {isVevaan && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-700 text-white shadow-xs tracking-wide">
+                                  Vevaan
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         {!globalRsvpOpen || lockedResponses[ev.junction_id] ? (
                           <span className={`px-4 py-1.5 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 ${
                             responses[ev.junction_id] === 'Attending' 
@@ -254,9 +275,10 @@ export default function RSVPPage() {
                             </button>
                           </>
                         )}
+                        </div>
                       </div>
-                      </div>
-                    ))}
+                    )
+                  })}
                   </div>
                 </div>
               ))}

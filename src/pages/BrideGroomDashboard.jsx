@@ -9,6 +9,7 @@ import { PageLoader } from '../components/ui/Spinner'
 import ArchMotif from '../components/ArchMotif'
 import { useAuth } from '../context/AuthContext'
 import { getUserStats, getInvitationsByUser, getEvents, getGlobalPhaseVisibility } from '../lib/db'
+import { isVevaanEvent, hasVevaanEvent } from '../lib/vevaan'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -104,7 +105,7 @@ export default function BrideGroomDashboard() {
                   Send Invitations →
                 </Button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                 <StatCard 
                   label="Seats Consumed" 
                   value={
@@ -117,6 +118,17 @@ export default function BrideGroomDashboard() {
                 />
                 <StatCard label="Invitations Ready" value={stats.ready} accent />
                 <StatCard label="Invitations Sent" value={stats.sent} accent />
+                {(() => {
+                  const vevaanEvent = events.find(e => isVevaanEvent(user.role, e.event_name))
+                  const vevaanCount = vevaanEvent ? (stats.seatsPerEvent?.[vevaanEvent.id] || 0) : 0
+                  return (
+                    <StatCard 
+                      label={`Vevaan Guests (${vevaanEvent ? vevaanEvent.event_name : (user.role === 'groom' ? 'Paan Gulab' : 'Walima')})`}
+                      value={vevaanCount}
+                      accent
+                    />
+                  )
+                })()}
                 {(stats.totalSeatsConsumed || 0) > (280 + ((stats.extra_thaals || 0) * 8)) && (
                   <StatCard 
                     label="Extra Seats Consumed" 
@@ -130,12 +142,31 @@ export default function BrideGroomDashboard() {
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink/45 mb-3">Seats Breakdown by Event</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {events.map((e) => (
-                      <div key={e.id} className="bg-ivory-soft border border-ivory-line rounded-lg p-3 text-center">
-                        <div className="text-[10px] font-bold uppercase text-ink/50 mb-1">{e.event_name}</div>
-                        <div className="font-display text-xl text-emerald-deep font-semibold">{stats.seatsPerEvent?.[e.id] || 0}</div>
-                      </div>
-                    ))}
+                    {events.map((e) => {
+                      const isVevaan = isVevaanEvent(user.role, e.event_name)
+                      return (
+                        <div 
+                          key={e.id} 
+                          className={`rounded-lg p-3 text-center transition ${
+                            isVevaan 
+                              ? 'bg-purple-50 border-2 border-purple-300 shadow-sm' 
+                              : 'bg-ivory-soft border border-ivory-line'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-ink/50 mb-1">
+                            <span>{e.event_name}</span>
+                            {isVevaan && (
+                              <span className="bg-purple-200 text-purple-900 px-1 py-0.2 rounded text-[9px]">
+                                Vevaan
+                              </span>
+                            )}
+                          </div>
+                          <div className={`font-display text-xl font-semibold ${isVevaan ? 'text-purple-900' : 'text-emerald-deep'}`}>
+                            {stats.seatsPerEvent?.[e.id] || 0}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -163,7 +194,9 @@ export default function BrideGroomDashboard() {
                       <tbody>
                         {invitations.slice(0, 5).map((inv) => (
                           <tr key={inv.id} className="border-b border-ivory-line last:border-0">
-                            <td className="py-3 px-2 font-medium text-ink">{inv.surname}</td>
+                            <td className="py-3 px-2 font-medium text-ink">
+                              <span>{inv.surname}</span>
+                            </td>
                             <td className="py-3 px-2 text-ink/70">{inv.invitee_ids.length}</td>
                             <td className="py-3 px-2 text-ink/70 max-w-[120px] truncate" title={inv.event_names}>{inv.event_names}</td>
                             <td className="py-3 px-2 text-ink/70">{inv.recipient_name}</td>

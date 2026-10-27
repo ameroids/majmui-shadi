@@ -6,6 +6,7 @@ import { Spinner } from '../components/ui/Spinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { getInvitationsByUser, getEvents } from '../lib/db'
+import { isVevaanEvent, hasVevaanEvent } from '../lib/vevaan'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -108,9 +109,14 @@ export default function SendConfirmationPage() {
                 value={filterEventId}
                 onChange={(e) => setFilterEventId(e.target.value)}
               >
-                {events.map(ev => (
-                  <option key={ev.id} value={ev.id}>{ev.event_name}</option>
-                ))}
+                {events.map(ev => {
+                  const isVevaan = isVevaanEvent(user?.role, ev.event_name)
+                  return (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.event_name}{isVevaan ? ' (Vevaan)' : ''}
+                    </option>
+                  )
+                })}
               </select>
             </div>
 
@@ -160,7 +166,9 @@ export default function SendConfirmationPage() {
                 {invitations.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50/50">
                     <td className="py-4 px-4 align-top">
-                      <div className="font-medium text-ink">{inv.surname} Family</div>
+                      <div className="font-medium text-ink">
+                        {inv.surname} Family
+                      </div>
                       <div className="text-xs text-ink/50 mt-1">
                         Invited {inv.invitee_names?.split(',').length || 0} members
                       </div>
@@ -201,10 +209,18 @@ export default function SendConfirmationPage() {
                                   if (ev.status === 'Attending' || ev.status === 'Not Attending') {
                                     uiStatus = 'Confirmed'
                                   }
+                                  const isVevaan = isVevaanEvent(user?.role, ev.eventName)
                                   
                                   return (
                                     <div key={evIdx} className="flex items-center justify-between gap-4 text-xs">
-                                      <span className="text-ink/60">{ev.eventName}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-ink/60">{ev.eventName}</span>
+                                        {isVevaan && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                            Vevaan
+                                          </span>
+                                        )}
+                                      </div>
                                       <Badge variant={uiStatus === 'Confirmed' ? 'success' : uiStatus === 'Declined' ? 'error' : 'neutral'} size="sm">
                                         {uiStatus}
                                       </Badge>
