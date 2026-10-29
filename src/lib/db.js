@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { JODA_MAPPING } from './jodaMapping'
 
 // --------------------------- Auth -----------------------------------------
 
@@ -26,20 +27,30 @@ export async function authenticate(username, password, expectedRoles) {
     
     // Fetch partner name for WhatsApp template if bride/groom
     if (safeUser.role === 'bride' || safeUser.role === 'groom') {
-      const match = safeUser.username.match(/^(\d+)(.*)$/i)
-      if (match) {
-        const pairNumber = match[1]
-        const partnerRole = safeUser.role === 'groom' ? 'bride' : 'groom'
-        
+      const jodaInfo = JODA_MAPPING[safeUser.username.trim()]
+      if (jodaInfo?.partnerUsername) {
         const { data: partner } = await supabase
           .from('users')
           .select('display_name')
-          .eq('role', partnerRole)
-          .like('username', `${pairNumber}%`)
+          .eq('username', jodaInfo.partnerUsername)
           .maybeSingle()
-          
         if (partner) {
           safeUser.partner_name = partner.display_name
+        }
+      } else {
+        const match = safeUser.username.match(/^(\d+)(.*)$/i)
+        if (match) {
+          const pairNumber = match[1]
+          const partnerRole = safeUser.role === 'groom' ? 'bride' : 'groom'
+          const { data: partner } = await supabase
+            .from('users')
+            .select('display_name')
+            .eq('role', partnerRole)
+            .like('username', `${pairNumber}%`)
+            .maybeSingle()
+          if (partner) {
+            safeUser.partner_name = partner.display_name
+          }
         }
       }
     }

@@ -7,6 +7,7 @@ import Logo from '../components/Logo'
 import ArchMotif from '../components/ArchMotif'
 import CardCarousel from '../components/CardCarousel'
 import { isVevaanEvent } from '../lib/vevaan'
+import { getCardImagePath } from '../lib/jodaMapping'
 
 export default function ConfirmationPage() {
   const { id } = useParams()
@@ -18,13 +19,7 @@ export default function ConfirmationPage() {
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
   
-  const getCardImagePath = (inv) => {
-    if (!inv?.invited_by_username) return null
-    const match = inv.invited_by_username.match(/^(\d+)/)
-    if (!match) return null
-    const prefix = inv.invited_by_role === 'bride' ? 'B' : 'G'
-    return `/cards/${prefix}${match[1]}.jpg`
-  }
+
   
   // State to track responses: { [junction_id]: 'Attending' | 'Not Attending' }
   const [responses, setResponses] = useState({})

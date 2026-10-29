@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import ArchMotif from '../components/ArchMotif'
 import CardCarousel from '../components/CardCarousel'
 import { isVevaanEvent } from '../lib/vevaan'
+import { getCardImagePath } from '../lib/jodaMapping'
 
 export default function RSVPPage() {
   const { id } = useParams()
@@ -18,13 +19,7 @@ export default function RSVPPage() {
   const [invitation, setInvitation] = useState(null)
   const [invitees, setInvitees] = useState([])
   
-  const getCardImagePath = (inv) => {
-    if (!inv?.invited_by_username) return null
-    const match = inv.invited_by_username.match(/^(\d+)/)
-    if (!match) return null
-    const prefix = inv.invited_by_role === 'bride' ? 'B' : 'G'
-    return `/cards/${prefix}${match[1]}.jpg`
-  }
+
 
   
   // State to track responses: { [inviteeId]: 'Attending' | 'Not Attending' }
