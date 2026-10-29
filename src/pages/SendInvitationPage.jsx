@@ -36,6 +36,32 @@ export default function SendInvitationPage() {
   const [loading, setLoading] = useState(true)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [lockedModal, setLockedModal] = useState({ open: false, title: '', message: '' })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'ready' | 'sent'
+
+
+  const filteredInvitations = useMemo(() => {
+    return invitations.filter((inv) => {
+      // Status filter
+      if (statusFilter === 'ready') {
+        if (inv.status === 'Sent' || inv.status === 'RSVP Sent') return false;
+      } else if (statusFilter === 'sent') {
+        if (inv.status !== 'Sent' && inv.status !== 'RSVP Sent') return false;
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchSurname = (inv.surname || '').toLowerCase().includes(q);
+        const matchRecipient = (inv.recipient_name || '').toLowerCase().includes(q);
+        const matchMobile = (inv.recipient_mobile || '').toLowerCase().includes(q);
+        const matchEvents = (inv.event_names || '').toLowerCase().includes(q);
+        return matchSurname || matchRecipient || matchMobile || matchEvents;
+      }
+
+      return true;
+    });
+  }, [invitations, statusFilter, searchQuery]);
 
   const loadAll = async () => {
     setLoading(true)
@@ -147,113 +173,287 @@ export default function SendInvitationPage() {
         </div>
       </div>
 
+      {/* Search and Quick Filters */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="🔍 Search family, recipient or phone..."
+            className="w-full text-sm px-4 py-2.5 rounded-xl border border-ivory-line bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald/20 focus:border-emerald"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink/40 hover:text-ink"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-ivory-soft p-1 rounded-xl border border-ivory-line self-start sm:self-auto overflow-x-auto w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+              statusFilter === 'all' ? 'bg-white text-emerald-deep shadow-xs' : 'text-ink/60 hover:text-ink'
+            }`}
+          >
+            All ({invitations.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ready')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+              statusFilter === 'ready' ? 'bg-white text-emerald-deep shadow-xs' : 'text-ink/60 hover:text-ink'
+            }`}
+          >
+            Ready to Send ({invitations.filter(i => i.status !== 'Sent' && i.status !== 'RSVP Sent').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('sent')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
+              statusFilter === 'sent' ? 'bg-white text-emerald-deep shadow-xs' : 'text-ink/60 hover:text-ink'
+            }`}
+          >
+            Sent ({invitations.filter(i => i.status === 'Sent' || i.status === 'RSVP Sent').length})
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-ink/50 py-10"><Spinner className="h-4 w-4" /> Loading…</div>
-      ) : invitations.length === 0 ? (
+      ) : filteredInvitations.length === 0 ? (
         <Card className="p-6">
           <EmptyState
             icon="✉"
-            title="No invitations created yet"
-            description="Start a new invitation to pick a family, a representative, and the events they're invited to."
-            action={<Button onClick={handleStartNewInvitation}>+ New Invitation</Button>}
+            title={invitations.length === 0 ? "No invitations created yet" : "No matching invitations found"}
+            description={
+              invitations.length === 0
+                ? "Start a new invitation to pick a family, a representative, and the events they're invited to."
+                : "Try adjusting your search query or status filter above."
+            }
+            action={invitations.length === 0 ? <Button onClick={handleStartNewInvitation}>+ New Invitation</Button> : null}
           />
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-ink/45 bg-ivory-soft border-b border-ivory-line">
-                  <th className="py-3 px-4 font-semibold">Family</th>
-                  <th className="py-3 px-4 font-semibold">Members</th>
-                  <th className="py-3 px-4 font-semibold">Events</th>
-                  <th className="py-3 px-4 font-semibold">Recipient</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invitations.map((inv) => (
-                  <tr key={inv.id} className="border-b border-ivory-line last:border-0">
-                    <td className="py-3 px-4 font-medium text-ink">
-                      <span>{inv.surname}</span>
-                    </td>
-                    <td className="py-3 px-4 text-ink/70">{inv.invitee_ids.length}</td>
-                    <td className="py-3 px-4 text-ink/70">{inv.event_names}</td>
-                    <td className="py-3 px-4 text-ink/70">
-                      {inv.recipient_name}
-                      <div className="text-xs text-ink/40 font-mono">{inv.recipient_mobile}</div>
-                    </td>
-                    <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
-                    <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                      {inv.status !== 'Sent' && inv.status !== 'RSVP Sent' && (
-                        <Button variant="whatsapp" size="sm" onClick={() => {
-                          if (user.can_send_invitations === false) {
+        <>
+          {/* MOBILE VIEW: Clean, full-width touch-friendly cards (no horizontal scroll) */}
+          <div className="block md:hidden space-y-3">
+            {filteredInvitations.map((inv) => (
+              <div key={inv.id} className="bg-white rounded-2xl border border-ivory-line p-4 shadow-sm space-y-3">
+                <div className="flex items-start justify-between gap-2 border-b border-ivory-line pb-2.5">
+                  <div>
+                    <h3 className="font-semibold text-base text-ink">{inv.surname} Family</h3>
+                    <p className="text-xs text-ink/50 mt-0.5">{inv.invitee_ids.length} Invited {inv.invitee_ids.length === 1 ? 'member' : 'members'}</p>
+                  </div>
+                  <Badge tone={inv.status}>{inv.status}</Badge>
+                </div>
+
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-ink/40 mb-1">Invited Events</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(inv.event_names || '').split(',').map((evName, idx) => (
+                      <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald/10 text-emerald-deep">
+                        {evName.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-ivory-soft rounded-xl p-2.5 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-ink/50 block text-[10px] uppercase font-semibold">Recipient</span>
+                    <span className="font-medium text-ink">{inv.recipient_name}</span>
+                  </div>
+                  <span className="font-mono text-ink/70 font-medium">{inv.recipient_mobile}</span>
+                </div>
+
+                <div className="pt-1 flex flex-col gap-2">
+                  {inv.status !== 'Sent' && inv.status !== 'RSVP Sent' && (
+                    <Button
+                      variant="whatsapp"
+                      className="w-full justify-center h-11 text-sm font-semibold shadow-sm"
+                      onClick={() => {
+                        if (user.can_send_invitations === false) {
+                          setLockedModal({
+                            open: true,
+                            title: 'Action Locked',
+                            message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                          })
+                          return
+                        }
+                        handleOpenWhatsapp(inv)
+                      }}
+                    >
+                      Send on WhatsApp
+                    </Button>
+                  )}
+                  {inv.status !== 'Sent' && inv.status !== 'RSVP Sent' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-center text-xs text-ink/70"
+                      onClick={() => {
+                        if (user.can_send_invitations === false) {
+                          setLockedModal({
+                            open: true,
+                            title: 'Action Locked',
+                            message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                          })
+                          return
+                        }
+                        handleMarkSent(inv)
+                      }}
+                    >
+                      Mark as Already Sent
+                    </Button>
+                  )}
+                  {inv.status === 'Sent' && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 justify-center text-xs"
+                        onClick={() => {
+                          if (user.can_send_rsvps === false) {
                             setLockedModal({
                               open: true,
-                              title: 'Action Locked',
-                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                              title: 'RSVP Phase Locked',
+                              message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
                             })
                             return
                           }
-                          handleOpenWhatsapp(inv)
-                        }}>
-                          Send on WhatsApp
-                        </Button>
-                      )}
-                      {(inv.status !== 'Sent' && inv.status !== 'RSVP Sent') && (
-                        <Button variant="outline" size="sm" onClick={() => {
-                          if (user.can_send_invitations === false) {
+                          handleSendRsvp(inv)
+                        }}
+                      >
+                        Send RSVP Link
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 justify-center text-xs"
+                        onClick={() => {
+                          if (user.can_send_rsvps === false) {
                             setLockedModal({
                               open: true,
-                              title: 'Action Locked',
-                              message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                              title: 'RSVP Phase Locked',
+                              message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
                             })
                             return
                           }
-                          handleMarkSent(inv)
-                        }}>
-                          Mark Sent
-                        </Button>
-                      )}
-                      {inv.status === 'Sent' && (
-                        <>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            if (user.can_send_rsvps === false) {
-                              setLockedModal({
-                                open: true,
-                                title: 'RSVP Phase Locked',
-                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                              })
-                              return
-                            }
-                            handleSendRsvp(inv)
-                          }}>
-                            Send RSVP Link
-                          </Button>
-                          
-                          <Button variant="outline" size="sm" onClick={() => {
-                            if (user.can_send_rsvps === false) {
-                              setLockedModal({
-                                open: true,
-                                title: 'RSVP Phase Locked',
-                                message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
-                              })
-                              return
-                            }
-                            handleMarkRsvpSent(inv)
-                          }}>
-                            Mark RSVP Sent
-                          </Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          handleMarkRsvpSent(inv)
+                        }}
+                      >
+                        Mark RSVP Sent
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        </Card>
+
+          {/* DESKTOP VIEW: Full Spacious Table */}
+          <Card className="hidden md:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-ink/45 bg-ivory-soft border-b border-ivory-line">
+                    <th className="py-3 px-4 font-semibold">Family</th>
+                    <th className="py-3 px-4 font-semibold">Members</th>
+                    <th className="py-3 px-4 font-semibold">Events</th>
+                    <th className="py-3 px-4 font-semibold">Recipient</th>
+                    <th className="py-3 px-4 font-semibold">Status</th>
+                    <th className="py-3 px-4 font-semibold text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInvitations.map((inv) => (
+                    <tr key={inv.id} className="border-b border-ivory-line last:border-0 hover:bg-ivory-soft/30 transition-colors">
+                      <td className="py-3 px-4 font-medium text-ink">
+                        <span>{inv.surname}</span>
+                      </td>
+                      <td className="py-3 px-4 text-ink/70">{inv.invitee_ids.length}</td>
+                      <td className="py-3 px-4 text-ink/70">{inv.event_names}</td>
+                      <td className="py-3 px-4 text-ink/70">
+                        {inv.recipient_name}
+                        <div className="text-xs text-ink/40 font-mono">{inv.recipient_mobile}</div>
+                      </td>
+                      <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
+                      <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                        {inv.status !== 'Sent' && inv.status !== 'RSVP Sent' && (
+                          <Button variant="whatsapp" size="sm" onClick={() => {
+                            if (user.can_send_invitations === false) {
+                              setLockedModal({
+                                open: true,
+                                title: 'Action Locked',
+                                message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                              })
+                              return
+                            }
+                            handleOpenWhatsapp(inv)
+                          }}>
+                            Send on WhatsApp
+                          </Button>
+                        )}
+                        {(inv.status !== 'Sent' && inv.status !== 'RSVP Sent') && (
+                          <Button variant="outline" size="sm" onClick={() => {
+                            if (user.can_send_invitations === false) {
+                              setLockedModal({
+                                open: true,
+                                title: 'Action Locked',
+                                message: 'You cannot send or update invitations. Kindly contact your TNC admin for assistance.'
+                              })
+                              return
+                            }
+                            handleMarkSent(inv)
+                          }}>
+                            Mark Sent
+                          </Button>
+                        )}
+                        {inv.status === 'Sent' && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => {
+                              if (user.can_send_rsvps === false) {
+                                setLockedModal({
+                                  open: true,
+                                  title: 'RSVP Phase Locked',
+                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                                })
+                                return
+                              }
+                              handleSendRsvp(inv)
+                            }}>
+                              Send RSVP Link
+                            </Button>
+                            
+                            <Button variant="outline" size="sm" onClick={() => {
+                              if (user.can_send_rsvps === false) {
+                                setLockedModal({
+                                  open: true,
+                                  title: 'RSVP Phase Locked',
+                                  message: 'The RSVP phase has not been unlocked yet. Kindly contact your admin for assistance.'
+                                })
+                                return
+                              }
+                              handleMarkRsvpSent(inv)
+                            }}>
+                              Mark RSVP Sent
+                            </Button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
 
       <InvitationWizard
