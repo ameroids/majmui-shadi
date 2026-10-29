@@ -75,3 +75,4 @@ export function getCardImagePath(invitation) {
 
   return null
 }
+
