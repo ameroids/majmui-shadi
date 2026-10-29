@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Card from '../components/ui/Card'
@@ -17,9 +17,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [legalOpen, setLegalOpen] = useState(false)
   const [legalTab, setLegalTab] = useState('terms')
-  const { login } = useAuth()
+  const { user, login, ready } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (ready && user) {
+      if (user.role === 'bride' || user.role === 'groom') navigate('/dashboard', { replace: true })
+      else if (user.role === 'admin') navigate('/admin', { replace: true })
+      else if (user.role === 'tnc') navigate('/tnc', { replace: true })
+      else if (user.role === 'accounts') navigate('/accounts', { replace: true })
+    }
+  }, [user, ready, navigate])
 
 
   const handleSubmit = async (e) => {
