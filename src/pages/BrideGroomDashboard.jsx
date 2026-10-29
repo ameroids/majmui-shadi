@@ -29,6 +29,7 @@ export default function BrideGroomDashboard() {
     return cached ? JSON.parse(cached) : { phase_1_visible: true, phase_2_visible: true, phase_3_visible: true }
   })
   const [loading, setLoading] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(10)
 
 
   useEffect(() => {
@@ -190,6 +191,7 @@ export default function BrideGroomDashboard() {
                     description="Once you add invitees and generate a WhatsApp invitation, it will appear here."
                   />
                 ) : (
+                  <>
                   <div className="overflow-x-auto -mx-2">
                     <table className="w-full text-sm min-w-[560px]">
                       <thead>
@@ -202,7 +204,7 @@ export default function BrideGroomDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {invitations.slice(0, 5).map((inv) => (
+                        {invitations.slice(0, visibleCount).map((inv) => (
                           <tr key={inv.id} className="border-b border-ivory-line last:border-0">
                             <td className="py-3 px-2 font-medium text-ink">
                               <span>{inv.surname}</span>
@@ -216,6 +218,36 @@ export default function BrideGroomDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  {invitations.length > 10 && (
+                    <div className="mt-4 pt-3 border-t border-ivory-line flex items-center justify-between text-xs text-ink/60 flex-wrap gap-2">
+                      <span>
+                        Showing {Math.min(visibleCount, invitations.length)} of {invitations.length} invitations
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {visibleCount > 10 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVisibleCount(10)}
+                            className="text-xs py-1 px-3"
+                          >
+                            Show Less
+                          </Button>
+                        )}
+                        {visibleCount < invitations.length && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVisibleCount((prev) => prev + 20)}
+                            className="text-xs py-1 px-3"
+                          >
+                            See More (+20)
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </Card>
             </section>
