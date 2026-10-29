@@ -162,6 +162,23 @@ export default function ConfirmationPage() {
     )
   }
 
+  const eventSummaryList = (() => {
+    const countsMap = new Map();
+    invitees.forEach(inv => {
+      (inv.events || []).forEach(ev => {
+        const name = ev.event_name;
+        if (!countsMap.has(name)) {
+          countsMap.set(name, 0);
+        }
+        countsMap.set(name, countsMap.get(name) + 1);
+      });
+    });
+    return Array.from(countsMap.entries()).map(([name, count]) => ({
+      name,
+      count
+    }));
+  })();
+
   return (
     <div className="min-h-screen bg-ivory py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-2xl mx-auto">
@@ -198,6 +215,21 @@ export default function ConfirmationPage() {
             <p className="text-ink/70 mb-8 text-center max-w-lg mx-auto">
               Please let us know if you and your family members will be able to attend the wedding events.
             </p>
+            {eventSummaryList.length > 0 && (
+              <div className="mb-8 p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-center max-w-lg mx-auto shadow-xs">
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-800/80 mb-2">Invitation Summary</p>
+                <p className="text-sm text-stone-800 font-medium leading-relaxed">
+                  Your family has{' '}
+                  {eventSummaryList.map((item, idx) => (
+                    <span key={item.name}>
+                      {idx > 0 && idx === eventSummaryList.length - 1 ? ' and ' : idx > 0 ? ', ' : ''}
+                      <span className="font-bold text-emerald-deep">{item.count}</span> {item.count === 1 ? 'invite' : 'invites'} in <span className="font-semibold">{item.name}</span>
+                    </span>
+                  ))}
+                  .
+                </p>
+              </div>
+            )}
 
             <div className="space-y-6">
               {invitees.map((invitee) => {

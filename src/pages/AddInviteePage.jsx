@@ -116,7 +116,11 @@ export default function AddInviteePage() {
   const handleSelectFamily = (fam) => {
     setSelectedFamily(fam)
     const already = myFamilies.find((f) => f.family_id === fam.id)
-    const preselected = new Set((already?.members || []).map((m) => m.member_id))
+    const preselected = new Set(
+      (already?.members || [])
+        .filter(m => m.age === null || m.age === undefined || Number(m.age) > 5)
+        .map((m) => m.member_id)
+    )
     setSelectedIds(preselected)
 
     const mobiles = {}
@@ -145,6 +149,10 @@ export default function AddInviteePage() {
   }
 
   const toggleMember = (memberId) => {
+    const mem = selectedFamily?.members?.find((m) => m.id === memberId)
+    if (mem && mem.age !== null && mem.age !== undefined && Number(mem.age) <= 5) {
+      return
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev)
       next.has(memberId) ? next.delete(memberId) : next.add(memberId)
@@ -540,17 +548,28 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
         </div>
       </div>
       <ul className="divide-y divide-ivory-line">
-        {family.members.map((m) => (
-          <li key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3">
+        {family.members.map((m) => {
+          const isChild = m.age !== null && m.age !== undefined && Number(m.age) <= 5;
+          return (
+          <li key={m.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3 ${isChild ? 'bg-amber-50/30' : ''}`}>
             <div className="flex-1">
               <Checkbox
                 id={`mem-${m.id}`}
-                checked={selectedIds.has(m.id)}
-                onChange={() => onToggle(m.id)}
+                checked={!isChild && selectedIds.has(m.id)}
+                disabled={isChild}
+                onChange={() => !isChild && onToggle(m.id)}
                 label={
-                  <span>
-                    <span className="font-medium">{m.full_name}</span>
+                  <span className="inline-flex items-center gap-1.5 flex-wrap">
+                    <span className={`font-medium ${isChild ? 'text-ink/50' : ''}`}>{m.full_name}</span>
                     <span className="text-ink/45 text-xs"> · {m.relationship}</span>
+                    {m.age !== null && m.age !== undefined && (
+                      <span className="text-ink/40 text-xs font-mono">({m.age} yrs)</span>
+                    )}
+                    {isChild && (
+                      <span className="inline-flex items-center text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200 rounded px-1.5 py-0.5">
+                        Child (≤ 5 yrs) — exempt
+                      </span>
+                    )}
                   </span>
                 }
               />
@@ -568,7 +587,7 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
             )}
             {alreadyInvited.has(m.id) && <Badge tone="Ready">Added</Badge>}
           </li>
-        ))}
+        )})}
       </ul>
       <div className="px-4 sm:px-5 py-4 bg-ivory-soft flex justify-end">
         <Button onClick={onSave} loading={saving}>

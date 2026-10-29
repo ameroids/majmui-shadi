@@ -18,7 +18,7 @@ create table if not exists users (
   display_name text not null,
   can_add_invitees boolean not null default true,
   can_send_invitations boolean not null default true,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now() 
 );
 
 -- ---------------------------------------------------------------------------
@@ -41,6 +41,7 @@ create table if not exists family_members (
   mobile text,
   relationship text,
   gender text,
+  age integer,
   created_at timestamptz not null default now()
 );
 
@@ -77,6 +78,7 @@ create table if not exists invitees (
   mobile text,
   relationship text,
   gender text,
+  age integer,
   selected boolean not null default true,
   invitation_status text not null default 'Not Invited',
   confirmation_status text not null default 'Not Sent' check (confirmation_status in ('Not Sent', 'Sent', 'Confirmed', 'Declined')),

@@ -396,6 +396,7 @@ export async function saveInvitees(userId, family, selectedMembers) {
     mobile: member.mobile || null,
     relationship: member.relationship || null,
     gender: member.gender || 'Unknown',
+    age: member.age !== undefined ? member.age : null,
     selected: true,
     invitation_status: 'Not Invited'
   }))
@@ -443,6 +444,36 @@ export async function getFamiliesWithInviteesForUser(userId) {
 }
 
 // --------------------------- Invitations -------------------------------------
+
+export async function getOtherInvitationsForMembers(members, currentUserId) {
+  if (!members || members.length === 0) return []
+  
+  const memberIds = members.map(m => m.member_id || m.id).filter(Boolean)
+  if (memberIds.length === 0) return []
+
+  try {
+    const { data, error } = await supabase
+      .from('invitation_member_events')
+      .select(`
+        event_id,
+        invitee_id,
+        events ( id, event_name ),
+        invitees!inner ( id, member_id, member_its, full_name ),
+        invitations!inner ( id, bride_groom_user_id, status )
+      `)
+      .in('invitees.member_id', memberIds)
+      .neq('invitations.bride_groom_user_id', currentUserId)
+
+    if (error) {
+      console.error('getOtherInvitationsForMembers error:', error)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.error('getOtherInvitationsForMembers catch:', err)
+    return []
+  }
+}
 
 export async function createInvitation(userId, payload) {
   const { data: record, error } = await supabase

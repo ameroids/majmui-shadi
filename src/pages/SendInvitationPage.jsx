@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
   getFamiliesWithInviteesForUser, getEvents, createInvitation,
-  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, getUserStats
+  getInvitationsByUser, updateInvitationStatus, updateInvitationMessage, getUserStats, getOtherInvitationsForMembers
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink, generateRsvpMessage } from '../lib/messageTemplate'
 import { isVevaanEvent, hasVevaanEvent } from '../lib/vevaan'
@@ -186,7 +186,7 @@ export default function SendInvitationPage() {
                     </td>
                     <td className="py-3 px-4"><Badge tone={inv.status}>{inv.status}</Badge></td>
                     <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                      {inv.status !== 'RSVP Sent' && (
+                      {inv.status !== 'Sent' && inv.status !== 'RSVP Sent' && (
                         <Button variant="whatsapp" size="sm" onClick={() => {
                           if (user.can_send_invitations === false) {
                             setLockedModal({
@@ -198,7 +198,7 @@ export default function SendInvitationPage() {
                           }
                           handleOpenWhatsapp(inv)
                         }}>
-                          {inv.status === 'Sent' ? 'Reopen' : 'Send on WhatsApp'}
+                          Send on WhatsApp
                         </Button>
                       )}
                       {(inv.status !== 'Sent' && inv.status !== 'RSVP Sent') && (
@@ -300,6 +300,8 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
   const [representativeId, setRepresentativeId] = useState('')
   const [message, setMessage] = useState('')
   const [creating, setCreating] = useState(false)
+  const [conflictMap, setConflictMap] = useState({})
+  const [loadingConflicts, setLoadingConflicts] = useState(false)
 
   const family = families.find((f) => f.family_id === familyId)
 
@@ -318,6 +320,33 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
       })
       setSelectedMemberEvents(initial)
       setRepresentativeId('')
+
+      setLoadingConflicts(true)
+      getOtherInvitationsForMembers(family.members, userId)
+        .then((otherInvites) => {
+          const map = {}
+          ;(otherInvites || []).forEach(row => {
+            const memId = row.invitees?.member_id
+            const evtId = row.event_id
+            const evtName = row.events?.event_name || 'this event'
+            const fullMem = family.members.find(m => m.member_id === memId || m.id === row.invitees?.id)
+            if (fullMem && evtId) {
+              map[`${fullMem.id}_${evtId}`] = {
+                memberName: fullMem.full_name,
+                eventName: evtName,
+              }
+            }
+          })
+          setConflictMap(map)
+        })
+        .catch(err => {
+          console.error('Error fetching conflict invitations:', err)
+        })
+        .finally(() => {
+          setLoadingConflicts(false)
+        })
+    } else {
+      setConflictMap({})
     }
   }, [familyId]) // eslint-disable-line
 
@@ -332,6 +361,19 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
   const activeMembers = family ? family.members.filter(m => activeMemberIds.has(m.id)) : []
   const representative = activeMembers.find((m) => m.id === representativeId)
   const activeEvents = events.filter((e) => activeEventIds.has(e.id))
+
+  const activeConflicts = useMemo(() => {
+    const list = []
+    const seen = new Set()
+    for (const key of selectedMemberEvents) {
+      const c = conflictMap[key]
+      if (c && !seen.has(key)) {
+        seen.add(key)
+        list.push(c)
+      }
+    }
+    return list
+  }, [selectedMemberEvents, conflictMap])
 
   const toggleMemberEvent = (memberId, eventId) => {
     setSelectedMemberEvents((prev) => {
@@ -515,16 +557,30 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
                         <span className="text-[10px] text-ink/30 uppercase font-semibold" title="Mobile number required to be a representative">No Mobile</span>
                       )}
                     </td>
-                    {events.map(e => (
-                      <td key={e.id} className="py-3 px-4 text-center">
-                        <Checkbox
-                          id={`grid-${m.id}-${e.id}`}
-                          checked={selectedMemberEvents.has(`${m.id}_${e.id}`)}
-                          onChange={() => toggleMemberEvent(m.id, e.id)}
-                          label=""
-                        />
-                      </td>
-                    ))}
+                    {events.map(e => {
+                      const conflict = conflictMap[`${m.id}_${e.id}`]
+                      return (
+                        <td key={e.id} className="py-3 px-4 text-center align-middle">
+                          <div className="flex flex-col items-center justify-center gap-1.5">
+                            <Checkbox
+                              id={`grid-${m.id}-${e.id}`}
+                              checked={selectedMemberEvents.has(`${m.id}_${e.id}`)}
+                              onChange={() => toggleMemberEvent(m.id, e.id)}
+                              label=""
+                            />
+                            {conflict && (
+                              <div 
+                                className="inline-flex flex-col items-center justify-center text-[10px] leading-tight text-amber-800 bg-[#fffbeb] border border-[#fcd34d] px-2 py-0.5 rounded shadow-xs font-medium cursor-help"
+                                title={`Already invited to ${e.event_name} by other. You can still invite this person.`}
+                              >
+                                <span className="flex items-center gap-0.5 whitespace-nowrap">⚠ Already</span>
+                                <span className="whitespace-nowrap">invited</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -548,6 +604,25 @@ function InvitationWizard({ open, onClose, families, events, invitations, userId
               <div>
                 <strong>Quota Exceeded:</strong> You have exceeded the {280 + ((stats?.extra_thaals || 0) * 8)} person limit. Adding extra invitees will charge ₹1,800 per thaal.
               </div>
+            </div>
+          )}
+
+          {activeConflicts.length > 0 && (
+            <div className="mt-4 bg-[#fefce8]/80 border border-amber-300 text-amber-950 p-4 rounded-xl text-sm shadow-xs animate-fadeIn">
+              <div className="flex items-center gap-2 font-bold text-amber-900 mb-2">
+                <span className="text-amber-600 text-base">⚠️</span>
+                <span>Notice: Already invited to selected events</span>
+              </div>
+              <ul className="space-y-1.5 text-xs sm:text-sm text-amber-950/90 ml-1">
+                {activeConflicts.map((c, idx) => (
+                  <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                    <span className="text-amber-700 font-bold">•</span>
+                    <span>
+                      <strong>{c.memberName}</strong> is already invited to <strong>{c.eventName}</strong> by other, but you can still invite this person.
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

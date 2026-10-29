@@ -170,6 +170,23 @@ export default function RSVPPage() {
     )
   }
 
+  const eventSummaryList = (() => {
+    const countsMap = new Map();
+    invitees.forEach(inv => {
+      (inv.events || []).forEach(ev => {
+        const name = ev.event_name;
+        if (!countsMap.has(name)) {
+          countsMap.set(name, 0);
+        }
+        countsMap.set(name, countsMap.get(name) + 1);
+      });
+    });
+    return Array.from(countsMap.entries()).map(([name, count]) => ({
+      name,
+      count
+    }));
+  })();
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="w-full max-w-2xl">
@@ -206,6 +223,21 @@ export default function RSVPPage() {
           <div className="mb-8 text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Please confirm your attendance</h2>
             <p className="text-gray-500 text-sm">Select who will be attending from your family.</p>
+            {eventSummaryList.length > 0 && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-50/80 border border-amber-200/80 text-center max-w-lg mx-auto shadow-xs">
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-800/80 mb-2">Invitation Summary</p>
+                <p className="text-sm text-stone-800 font-medium leading-relaxed">
+                  Your family has{' '}
+                  {eventSummaryList.map((item, idx) => (
+                    <span key={item.name}>
+                      {idx > 0 && idx === eventSummaryList.length - 1 ? ' and ' : idx > 0 ? ', ' : ''}
+                      <span className="font-bold text-emerald-deep">{item.count}</span> {item.count === 1 ? 'invite' : 'invites'} in <span className="font-semibold">{item.name}</span>
+                    </span>
+                  ))}
+                  .
+                </p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

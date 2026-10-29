@@ -33,12 +33,12 @@ export function Select({ className = '', error, children, ...props }) {
   )
 }
 
-export function Checkbox({ checked, onChange, label, id }) {
+export function Checkbox({ checked, onChange, label, id, disabled = false }) {
   return (
-    <label htmlFor={id} className="flex items-center gap-2.5 cursor-pointer select-none tap-target">
+    <label htmlFor={id} className={`flex items-center gap-2.5 select-none tap-target ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
       <span
         className={`h-5 w-5 flex-none rounded-md border-2 flex items-center justify-center transition ${
-          checked ? 'bg-emerald-deep border-emerald-deep' : 'bg-white border-ivory-line'
+          checked ? 'bg-emerald-deep border-emerald-deep' : disabled ? 'bg-gray-100 border-gray-300' : 'bg-white border-ivory-line'
         }`}
       >
         {checked && (
@@ -47,7 +47,7 @@ export function Checkbox({ checked, onChange, label, id }) {
           </svg>
         )}
       </span>
-      <input id={id} type="checkbox" className="sr-only" checked={checked} onChange={onChange} />
+      <input id={id} type="checkbox" className="sr-only" checked={checked} onChange={disabled ? undefined : onChange} disabled={disabled} />
       {label && <span className="text-sm text-ink">{label}</span>}
     </label>
   )
