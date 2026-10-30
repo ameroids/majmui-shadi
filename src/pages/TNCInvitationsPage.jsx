@@ -13,7 +13,7 @@ import {
   searchFamiliesByName, createManualFamily, updateManualFamily, checkExistingMembersByIts,
   saveInvitees, getFamiliesWithInviteesForUser, removeInvitee,
   getEvents, createInvitation, getInvitationsByUser,
-  updateInvitationStatus, updateInvitationMessage
+  updateInvitationStatus, updateInvitationMessage, resetUserData
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink } from '../lib/messageTemplate'
 
@@ -41,6 +41,8 @@ export default function TNCInvitationsPage() {
 
   const [activeTab, setActiveTab] = useState('invitations') // 'invitations' | 'guests'
   const [loading, setLoading] = useState(true)
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   // Data
   const [myFamilies, setMyFamilies] = useState([])
@@ -166,6 +168,20 @@ export default function TNCInvitationsPage() {
       showToast(err.message || 'Error saving invitees', 'error')
     } finally {
       setSavingGuest(false)
+    }
+  }
+
+  const handleResetTncData = async () => {
+    setResetting(true)
+    try {
+      await resetUserData(user.id)
+      showToast('All TNC invitations and guests have been reset successfully.')
+      setConfirmResetOpen(false)
+      await loadData()
+    } catch (err) {
+      showToast(err.message || 'Error resetting TNC data', 'error')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -541,6 +557,30 @@ export default function TNCInvitationsPage() {
           </Card>
         </div>
       )}
+
+      {/* Reset Confirmation Modal */}
+      <Modal
+        open={confirmResetOpen}
+        onClose={() => setConfirmResetOpen(false)}
+        title="Reset All TNC Data"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="ghost" onClick={() => setConfirmResetOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              onClick={handleResetTncData}
+              loading={resetting}
+            >
+              Confirm Reset
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-ink/70 leading-relaxed">
+          Are you sure you want to permanently delete all TNC guests and generated TNC invitations? This action cannot be undone.
+        </p>
+      </Modal>
 
       {/* Manual Entry Modal */}
       <Modal

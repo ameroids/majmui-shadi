@@ -280,6 +280,7 @@ function UsersTable({ users, onRefresh }) {
   const { showToast } = useToast()
   const brides = users.filter((u) => u.role === 'bride')
   const grooms = users.filter((u) => u.role === 'groom')
+  const tncUsers = users.filter((u) => u.role === 'tnc')
   
   const [confirmState, setConfirmState] = useState({ open: false, title: '', message: '', action: null, isDanger: false })
 
@@ -424,6 +425,35 @@ function UsersTable({ users, onRefresh }) {
           {grooms.map(renderUserItem)}
         </ul>
       </Card>
+
+      {tncUsers.length > 0 && (
+        <Card className="p-0 overflow-hidden lg:col-span-2">
+          <div className="p-4 sm:p-5 border-b border-ivory-line bg-ivory-soft/50 flex flex-col gap-3">
+            <div className="flex justify-between items-center flex-wrap gap-2">
+              <h2 className="font-display text-xl font-semibold text-emerald-deep flex items-center gap-2">
+                TNC Committee Accounts <Badge tone="neutral">{tncUsers.length}</Badge>
+              </h2>
+              <button className="flex items-center border border-rose-200/60 rounded bg-white shadow-sm overflow-hidden hover:bg-rose-50 transition-colors px-2.5 py-1 text-rose-600 font-medium text-xs whitespace-nowrap" onClick={() => handleBulkReset(tncUsers, 'TNC')}>
+                <span className="mr-1.5">⚠️</span> Reset All TNC Data
+              </button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(tncUsers, 'TNC', 1, 'Phase 1 (Guests)', 'This will permanently delete all guests and invitations for TNC.')}>
+                Reset All P1 (Guests)
+              </Button>
+              <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(tncUsers, 'TNC', 2, 'Phase 2 (Invitations)', 'This will delete generated invitations for TNC, but keep the guest list intact.')}>
+                Reset All P2 (Invitations)
+              </Button>
+              <Button variant="ghost" size="sm" className="text-wine border border-wine/20 hover:bg-wine/5 whitespace-nowrap text-xs py-1 px-2 h-auto bg-white shadow-sm" onClick={() => handleBulkPhaseReset(tncUsers, 'TNC', 3, 'Phase 3 (RSVPs)', 'This will reset all RSVP statuses to "Pending" for TNC.')}>
+                Reset All P3 (RSVPs)
+              </Button>
+            </div>
+          </div>
+          <ul className="divide-y divide-ivory-line px-5 sm:px-6">
+            {tncUsers.map(renderUserItem)}
+          </ul>
+        </Card>
+      )}
 
       <Modal 
         open={confirmState.open} 
