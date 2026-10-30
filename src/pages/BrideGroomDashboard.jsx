@@ -89,7 +89,7 @@ export default function BrideGroomDashboard() {
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <h2 className="font-display text-2xl font-semibold text-emerald-deep">Phase 1: Guest List</h2>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => window.open('/dashboard/print-roster', '_blank')} className="hidden sm:inline-flex border-emerald/20 text-emerald-deep hover:bg-emerald-soft">
+                    <Button variant="outline" size="sm" onClick={() => window.open('/dashboard/print-roster', '_blank')} className="border-emerald/20 text-emerald-deep hover:bg-emerald-soft text-xs sm:text-sm px-2.5 sm:px-3 py-1 sm:py-1.5">
                       🖨️ Download PDF / Print
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/add-invitee')}>
