@@ -172,6 +172,17 @@ export default function AddInviteePage() {
       return
     }
 
+    // Validate that any entered mobile number is exactly 10 digits
+    for (const m of selectedMembers) {
+      if (m.mobile && m.mobile.trim()) {
+        const cleanMobile = m.mobile.trim().replace(/\D/g, '')
+        if (cleanMobile.length !== 10) {
+          showToast('Please enter 10 digit mobile no.', 'error')
+          return
+        }
+      }
+    }
+
     setSaving(true)
     try {
       await saveInvitees(user.id, selectedFamily, selectedMembers)
@@ -208,6 +219,11 @@ export default function AddInviteePage() {
       setManualError('HOF ITS and Family/Surname are required.')
       return
     }
+    const cleanHofIts = manualHofIts.trim().replace(/\D/g, '')
+    if (cleanHofIts.length !== 8) {
+      setManualError('Please enter 8 digit its no.')
+      return
+    }
     const missingName = manualMembers.some((m) => !m.full_name.trim())
     if (missingName) {
       setManualError('Every member needs a full name.')
@@ -215,13 +231,29 @@ export default function AddInviteePage() {
     }
     const missingIts = manualMembers.some((m) => !(m.member_its || '').trim())
     if (missingIts) {
-      setManualError('Every member needs an ITS number.')
+      setManualError('Please enter 8 digit its no.')
       return
     }
-    const hasMobile = manualMembers.some((m) => m.mobile.trim())
+    for (const m of manualMembers) {
+      const cleanMemberIts = (m.member_its || '').trim().replace(/\D/g, '')
+      if (cleanMemberIts.length !== 8) {
+        setManualError('Please enter 8 digit its no.')
+        return
+      }
+    }
+    const hasMobile = manualMembers.some((m) => m.mobile && m.mobile.trim())
     if (!hasMobile) {
-      setManualError('Please provide a mobile number for at least one member.')
+      setManualError('Please enter 10 digit mobile no.')
       return
+    }
+    for (const m of manualMembers) {
+      if (m.mobile && m.mobile.trim()) {
+        const cleanMob = m.mobile.trim().replace(/\D/g, '')
+        if (cleanMob.length !== 10) {
+          setManualError('Please enter 10 digit mobile no.')
+          return
+        }
+      }
     }
 
     const memberItsList = manualMembers.map((m) => (m.member_its || '').trim()).filter(Boolean)
@@ -562,9 +594,7 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
                   <span className="inline-flex items-center gap-1.5 flex-wrap">
                     <span className={`font-medium ${isChild ? 'text-ink/50' : ''}`}>{m.full_name}</span>
                     <span className="text-ink/45 text-xs"> · {m.relationship}</span>
-                    {m.age !== null && m.age !== undefined && (
-                      <span className="text-ink/40 text-xs font-mono">({m.age} yrs)</span>
-                    )}
+
                     {isChild && (
                       <span className="inline-flex items-center text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200 rounded px-1.5 py-0.5">
                         Child (≤ 5 yrs) — exempt
@@ -577,9 +607,13 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
             {selectedIds.has(m.id) && (
               <div className="flex-1 max-w-xs">
                 <Input 
-                  placeholder="Enter mobile number" 
+                  placeholder="10-digit mobile number" 
                   value={memberMobiles[m.id] || ''} 
-                  onChange={(e) => setMemberMobiles(prev => ({ ...prev, [m.id]: e.target.value }))} 
+                  maxLength={10}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                    setMemberMobiles(prev => ({ ...prev, [m.id]: val }))
+                  }} 
                   className="h-8 text-sm"
                   inputMode="numeric"
                 />
@@ -608,8 +642,15 @@ function ManualEntryForm({
     <div className="mt-5 rounded-xl border border-ivory-line p-4 sm:p-5">
       <h3 className="font-display text-lg font-semibold text-emerald-deep mb-4">{isEdit ? 'Edit Invitee Manually' : 'Create Invitee Manually'}</h3>
       <div className="grid sm:grid-cols-2 gap-4 mb-5">
-        <Field label="HOF ITS" required>
-          <Input value={manualHofIts} onChange={(e) => setManualHofIts(e.target.value)} placeholder="e.g. 30987654" className="font-mono" />
+        <Field label="HOF ITS (8 digits)" required>
+          <Input 
+            value={manualHofIts} 
+            maxLength={8}
+            onChange={(e) => setManualHofIts(e.target.value.replace(/\D/g, '').slice(0, 8))} 
+            placeholder="e.g. 30987654" 
+            className="font-mono" 
+            inputMode="numeric"
+          />
         </Field>
         <Field label="Family / Surname" required>
           <Input value={manualSurname} onChange={(e) => setManualSurname(e.target.value)} placeholder="e.g. Saifuddin" />
@@ -629,11 +670,23 @@ function ManualEntryForm({
               <Field label="Full Name" required>
                 <Input value={m.full_name} onChange={(e) => updateManualRow(m.key, 'full_name', e.target.value)} />
               </Field>
-              <Field label="Mobile Number">
-                <Input value={m.mobile} onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value)} inputMode="numeric" placeholder="98XXXXXXXX" />
+              <Field label="Mobile Number (10 digits)">
+                <Input 
+                  value={m.mobile} 
+                  maxLength={10}
+                  onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))} 
+                  inputMode="numeric" 
+                  placeholder="98XXXXXXXX" 
+                />
               </Field>
-              <Field label="ITS" required>
-                <Input value={m.member_its || ''} onChange={(e) => updateManualRow(m.key, 'member_its', e.target.value)} inputMode="numeric" placeholder="e.g. 30987654" />
+              <Field label="ITS (8 digits)" required>
+                <Input 
+                  value={m.member_its || ''} 
+                  maxLength={8}
+                  onChange={(e) => updateManualRow(m.key, 'member_its', e.target.value.replace(/\D/g, '').slice(0, 8))} 
+                  inputMode="numeric" 
+                  placeholder="e.g. 30987654" 
+                />
               </Field>
             </div>
           </div>

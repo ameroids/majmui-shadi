@@ -143,6 +143,16 @@ export default function TNCInvitationsPage() {
       return
     }
 
+    for (const m of selectedMembers) {
+      if (m.mobile && m.mobile.trim()) {
+        const cleanMobile = m.mobile.trim().replace(/\D/g, '')
+        if (cleanMobile.length !== 10) {
+          showToast('Please enter 10 digit mobile no.', 'error')
+          return
+        }
+      }
+    }
+
     setSavingGuest(true)
     try {
       await saveInvitees(user.id, selectedFamily, selectedMembers)
@@ -176,6 +186,11 @@ export default function TNCInvitationsPage() {
       setManualError('HOF ITS and Family/Surname are required.')
       return
     }
+    const cleanHofIts = manualHofIts.trim().replace(/\D/g, '')
+    if (cleanHofIts.length !== 8) {
+      setManualError('Please enter 8 digit its no.')
+      return
+    }
     const missingName = manualMembers.some((m) => !m.full_name.trim())
     if (missingName) {
       setManualError('Every member needs a full name.')
@@ -183,8 +198,29 @@ export default function TNCInvitationsPage() {
     }
     const missingIts = manualMembers.some((m) => !(m.member_its || '').trim())
     if (missingIts) {
-      setManualError('Every member needs an ITS number.')
+      setManualError('Please enter 8 digit its no.')
       return
+    }
+    for (const m of manualMembers) {
+      const cleanMemberIts = (m.member_its || '').trim().replace(/\D/g, '')
+      if (cleanMemberIts.length !== 8) {
+        setManualError('Please enter 8 digit its no.')
+        return
+      }
+    }
+    const hasMobile = manualMembers.some((m) => m.mobile && m.mobile.trim())
+    if (!hasMobile) {
+      setManualError('Please enter 10 digit mobile no.')
+      return
+    }
+    for (const m of manualMembers) {
+      if (m.mobile && m.mobile.trim()) {
+        const cleanMob = m.mobile.trim().replace(/\D/g, '')
+        if (cleanMob.length !== 10) {
+          setManualError('Please enter 10 digit mobile no.')
+          return
+        }
+      }
     }
 
     const memberItsList = manualMembers.map((m) => (m.member_its || '').trim()).filter(Boolean)
@@ -440,11 +476,14 @@ export default function TNCInvitationsPage() {
 
                       <div className="w-full sm:w-48">
                         <Input
-                          placeholder="Mobile number"
+                          placeholder="10-digit mobile"
                           value={memberMobiles[m.id] || ''}
-                          onChange={(e) =>
-                            setMemberMobiles({ ...memberMobiles, [m.id]: e.target.value })
-                          }
+                          maxLength={10}
+                          inputMode="numeric"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                            setMemberMobiles({ ...memberMobiles, [m.id]: val })
+                          }}
                           className="text-xs py-1"
                         />
                       </div>
@@ -529,10 +568,12 @@ export default function TNCInvitationsPage() {
               placeholder="e.g. Ezzi, Raipuriawala"
             />
           </Field>
-          <Field label="Head of Family (HOF) ITS *">
+          <Field label="Head of Family (HOF) ITS (8 digits) *">
             <Input
               value={manualHofIts}
-              onChange={(e) => setManualHofIts(e.target.value)}
+              maxLength={8}
+              inputMode="numeric"
+              onChange={(e) => setManualHofIts(e.target.value.replace(/\D/g, '').slice(0, 8))}
               placeholder="e.g. 50401234"
             />
           </Field>
@@ -566,23 +607,27 @@ export default function TNCInvitationsPage() {
                       className="flex-1 text-xs"
                     />
                     <Input
-                      placeholder="ITS *"
+                      placeholder="ITS (8 digits) *"
                       value={m.member_its}
+                      maxLength={8}
+                      inputMode="numeric"
                       onChange={(e) => {
                         const copy = [...manualMembers]
-                        copy[idx].member_its = e.target.value
+                        copy[idx].member_its = e.target.value.replace(/\D/g, '').slice(0, 8)
                         setManualMembers(copy)
                       }}
-                      className="w-28 text-xs font-mono"
+                      className="w-32 text-xs font-mono"
                     />
                   </div>
                   <div className="flex gap-2 items-center">
                     <Input
-                      placeholder="Mobile number"
+                      placeholder="Mobile (10 digits)"
                       value={m.mobile}
+                      maxLength={10}
+                      inputMode="numeric"
                       onChange={(e) => {
                         const copy = [...manualMembers]
-                        copy[idx].mobile = e.target.value
+                        copy[idx].mobile = e.target.value.replace(/\D/g, '').slice(0, 10)
                         setManualMembers(copy)
                       }}
                       className="flex-1 text-xs"

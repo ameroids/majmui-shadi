@@ -89,6 +89,28 @@ export async function getEvents() {
 
 // --------------------------- Families (master data, read-mostly) -----------
 
+export async function searchFamilyByHofIts(hofIts) {
+  if (!hofIts) return null
+  const { data: family, error } = await supabase
+    .from('families')
+    .select('id, hof_its, surname, is_manual, family_members(*)')
+    .eq('hof_its', hofIts.trim())
+    .maybeSingle()
+    
+  if (!error && family) {
+    return {
+      id: family.id,
+      hof_its: family.hof_its,
+      surname: family.surname,
+      is_manual: family.is_manual,
+      members: family.family_members || [],
+    }
+  }
+  return null
+}
+
+
+
 export async function searchFamiliesByName(nameQuery) {
   if (!nameQuery || !nameQuery.trim()) return []
 
