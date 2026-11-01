@@ -16,6 +16,7 @@ import {
   updateInvitationStatus, updateInvitationMessage, resetUserData
 } from '../lib/db'
 import { generateMessage, buildWhatsappLink } from '../lib/messageTemplate'
+import { pickContactNumber } from '../lib/contactPicker'
 
 const TNC_NAV = [
   { path: '/tnc', label: 'Reports & Search', icon: '⌕' },
@@ -490,7 +491,7 @@ export default function TNCInvitationsPage() {
                         </div>
                       </label>
 
-                      <div className="w-full sm:w-48">
+                      <div className="w-full sm:w-56 flex items-center gap-1.5">
                         <Input
                           placeholder="10-digit mobile"
                           value={memberMobiles[m.id] || ''}
@@ -500,8 +501,22 @@ export default function TNCInvitationsPage() {
                             const val = e.target.value.replace(/\D/g, '').slice(0, 10)
                             setMemberMobiles({ ...memberMobiles, [m.id]: val })
                           }}
-                          className="text-xs py-1"
+                          className="text-xs py-1 flex-1 min-w-0"
                         />
+                        <button
+                          type="button"
+                          title="Pick contact from phone"
+                          onClick={async () => {
+                            const picked = await pickContactNumber()
+                            if (picked) {
+                              setMemberMobiles({ ...memberMobiles, [m.id]: picked })
+                            }
+                          }}
+                          className="h-8 px-2 rounded-lg border border-emerald-deep/20 bg-emerald-soft/50 hover:bg-emerald/15 active:scale-95 text-emerald-deep text-xs font-semibold flex items-center justify-center gap-1 shrink-0 transition shadow-2xs touch-manipulation"
+                        >
+                          <span className="text-sm">📱</span>
+                          <span className="hidden sm:inline text-[11px]">Contacts</span>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -660,18 +675,36 @@ export default function TNCInvitationsPage() {
                     />
                   </div>
                   <div className="flex gap-2 items-center">
-                    <Input
-                      placeholder="Mobile (10 digits)"
-                      value={m.mobile}
-                      maxLength={10}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        const copy = [...manualMembers]
-                        copy[idx].mobile = e.target.value.replace(/\D/g, '').slice(0, 10)
-                        setManualMembers(copy)
-                      }}
-                      className="flex-1 text-xs"
-                    />
+                    <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                      <Input
+                        placeholder="Mobile (10 digits)"
+                        value={m.mobile}
+                        maxLength={10}
+                        inputMode="numeric"
+                        onChange={(e) => {
+                          const copy = [...manualMembers]
+                          copy[idx].mobile = e.target.value.replace(/\D/g, '').slice(0, 10)
+                          setManualMembers(copy)
+                        }}
+                        className="flex-1 text-xs min-w-0"
+                      />
+                      <button
+                        type="button"
+                        title="Pick contact from phone"
+                        onClick={async () => {
+                          const picked = await pickContactNumber()
+                          if (picked) {
+                            const copy = [...manualMembers]
+                            copy[idx].mobile = picked
+                            setManualMembers(copy)
+                          }
+                        }}
+                        className="h-7 px-2 rounded-md border border-emerald-deep/20 bg-emerald-soft/50 hover:bg-emerald/15 active:scale-95 text-emerald-deep text-[11px] font-semibold flex items-center justify-center gap-1 shrink-0 transition touch-manipulation"
+                      >
+                        <span className="text-xs">📱</span>
+                        <span className="hidden sm:inline">Contacts</span>
+                      </button>
+                    </div>
                     <select
                       value={m.gender}
                       onChange={(e) => {
