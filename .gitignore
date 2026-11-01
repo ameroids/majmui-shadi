@@ -7,3 +7,6 @@ dist
 *.csv
 *.xlsx
 scratch/
+
+# Internal operational directives
+public/Majmui_Shaadi_Phase_Timeline.*

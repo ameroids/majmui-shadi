@@ -39,17 +39,17 @@ export default function TNCEventReportsPage() {
 
   const currentEventData = guestData[activeEventId] || {
     totalActual: 0,
-    totalUnique: 0,
+    totalTotal: 0,
     totalDuplicates: 0,
     actualGuests: [],
-    uniqueGuests: [],
+    totalGuests: [],
     duplicateGuests: []
   }
 
   const listToRender = 
-    activeTab === 'actual' ? currentEventData.actualGuests :
+    (activeTab === 'actual' ? currentEventData.actualGuests :
     activeTab === 'total' ? currentEventData.totalGuests : 
-    currentEventData.duplicateGuests
+    currentEventData.duplicateGuests) || []
 
   return (
     <DashboardLayout navItems={TNC_NAV} activePath="/tnc/reports" roleLabel="TNC">
