@@ -81,6 +81,8 @@ export default function TNCIndividualReportsPage() {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Ready')
   } else if (filterStatus === 'Added') {
     displayInvitees = displayInvitees.filter(inv => inv.invitation_status === 'Draft' || inv.invitation_status === 'Not Invited')
+  } else if (filterStatus === 'RSVP') {
+    displayInvitees = displayInvitees.filter(inv => ['RSVP Sent', 'RSVPed'].includes(inv.invitation_status))
   }
 
   const familiesMap = new Map()
@@ -96,6 +98,7 @@ export default function TNCIndividualReportsPage() {
     familiesMap.get(inv.family_id).members.push(inv)
   })
   const displayFamilies = Array.from(familiesMap.values()).sort((a, b) => a.surname.localeCompare(b.surname))
+  const totalPeopleCount = displayInvitees.length
 
   return (
     <DashboardLayout navItems={TNC_NAV} activePath="/tnc/individual" roleLabel="TNC">
@@ -136,6 +139,7 @@ export default function TNCIndividualReportsPage() {
                     <span className="font-medium truncate mr-2">
                       {filterStatus === 'Sent' ? '📬 Sent' : 
                        filterStatus === 'Ready' ? '⏳ Ready' : 
+                       filterStatus === 'RSVP' ? '✉️ RSVP Sent' :
                        '📝 Added'}
                     </span>
                     <svg className={`w-4 h-4 text-ink/60 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,6 +152,7 @@ export default function TNCIndividualReportsPage() {
                       {[
                         { value: 'Sent', label: '📬 Sent' },
                         { value: 'Ready', label: '⏳ Ready' },
+                        { value: 'RSVP', label: '✉️ RSVP Sent' },
                         { value: 'Added', label: '📝 Added' }
                       ].map(opt => (
                         <div 
@@ -295,9 +300,20 @@ export default function TNCIndividualReportsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center bg-emerald-deep/5 px-5 py-2.5 rounded-xl border border-emerald-deep/10 shadow-sm">
-                 <span className="text-2xl font-bold text-emerald-deep leading-none">{displayFamilies.length}</span>
-                 <span className="text-xs font-bold text-emerald-deep/70 uppercase tracking-widest ml-2.5 pt-0.5">Total</span>
+              <div className="flex items-center gap-3 bg-emerald-deep/5 px-4 py-2.5 rounded-xl border border-emerald-deep/10 shadow-sm">
+                <div className="flex items-baseline">
+                  <span className="text-2xl font-bold text-emerald-deep leading-none">{displayFamilies.length}</span>
+                  <span className="text-xs font-semibold text-emerald-deep/70 uppercase tracking-wider ml-1.5">
+                    {displayFamilies.length === 1 ? 'Family' : 'Families'}
+                  </span>
+                </div>
+                <span className="text-ink/20 font-light text-lg">·</span>
+                <div className="flex items-baseline">
+                  <span className="text-2xl font-bold text-emerald-deep leading-none">{totalPeopleCount}</span>
+                  <span className="text-xs font-semibold text-emerald-deep/70 uppercase tracking-wider ml-1.5">
+                    {totalPeopleCount === 1 ? 'Person' : 'People'}
+                  </span>
+                </div>
               </div>
             </div>
           )}

@@ -8,7 +8,7 @@ import { Field, Input } from '../components/ui/Field'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { getAdminStats, getAllInvitations, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteFamily, deleteAllFamilies, updateUserPermissions, getGlobalPhaseVisibility, setGlobalPhaseVisibility } from '../lib/db'
+import { getAdminStats, getAllInvitations, getAllInvitees, getAllFamilies, getAllUsersSafe, getEvents, resetUserData, resetUserPhaseData, deleteFamily, deleteAllFamilies, updateUserPermissions, getGlobalPhaseVisibility, setGlobalPhaseVisibility } from '../lib/db'
 import { getTemplate, setTemplate, DEFAULT_TEMPLATE } from '../lib/messageTemplate'
 import Modal from '../components/ui/Modal'
 
@@ -26,6 +26,7 @@ export default function AdminDashboard({ tab = 'overview' }) {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
   const [invitations, setInvitations] = useState([])
+  const [invitees, setInvitees] = useState([])
   const [families, setFamilies] = useState([])
   const [users, setUsers] = useState([])
   const [events, setEvents] = useState([])
@@ -33,10 +34,10 @@ export default function AdminDashboard({ tab = 'overview' }) {
 
   const load = async () => {
     setLoading(true)
-    const [s, inv, fam, u, evt, pv] = await Promise.all([
-      getAdminStats(), getAllInvitations(), getAllFamilies(), getAllUsersSafe(), getEvents(), getGlobalPhaseVisibility()
+    const [s, inv, invts, fam, u, evt, pv] = await Promise.all([
+      getAdminStats(), getAllInvitations(), getAllInvitees(), getAllFamilies(), getAllUsersSafe(), getEvents(), getGlobalPhaseVisibility()
     ])
-    setStats(s); setInvitations(inv); setFamilies(fam); setUsers(u); setEvents(evt); setPhaseVisibility(pv)
+    setStats(s); setInvitations(inv); setInvitees(invts); setFamilies(fam); setUsers(u); setEvents(evt); setPhaseVisibility(pv)
     setLoading(false)
   }
 
@@ -55,7 +56,7 @@ export default function AdminDashboard({ tab = 'overview' }) {
         <>
           {tab === 'overview' && <Overview stats={stats} events={events} />}
           {tab === 'families' && <FamiliesTable families={families} onRefresh={load} />}
-          {tab === 'invitations' && <InvitationsTable invitations={invitations} />}
+          {tab === 'invitations' && <InvitationsTable invitations={invitations} invitees={invitees} />}
           {tab === 'users' && <UsersTable users={users} onRefresh={load} />}
           {tab === 'phases' && <PhasesTable users={users} onRefresh={load} phaseVisibility={phaseVisibility} />}
           {tab === 'template' && <TemplateEditor />}
@@ -239,38 +240,182 @@ function FamiliesTable({ families, onRefresh }) {
   )
 }
 
-function InvitationsTable({ invitations }) {
+function InvitationsTable({ invitations = [], invitees = [] }) {
   const [q, setQ] = useState('')
-  const filtered = invitations.filter((i) => i.surname.toLowerCase().includes(q.toLowerCase()) || i.recipient_mobile.includes(q))
+  const [filterType, setFilterType] = useState('all') // 'all' | 'added' | 'sent' | 'rsvp'
+
+  const query = q.trim().toLowerCase()
+
+  // 1. Filtered Invitations (Families where card/invitation has been created)
+  const filteredInvs = invitations.filter((i) => {
+    const matchesQuery = !query || (i.surname || '').toLowerCase().includes(query) || (i.recipient_mobile || '').includes(query) || (i.invited_by || '').toLowerCase().includes(query)
+    if (!matchesQuery) return false
+
+    if (filterType === 'sent') {
+      return ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)
+    }
+    if (filterType === 'rsvp') {
+      return ['RSVP Sent', 'RSVPed'].includes(i.status)
+    }
+    return true
+  })
+
+  // 2. Filtered Added Invitees (Phase 1 individuals added across couples)
+  const filteredInvitees = invitees.filter((inv) => {
+    const matchesQuery = !query || 
+      (inv.full_name || '').toLowerCase().includes(query) || 
+      (inv.surname || '').toLowerCase().includes(query) || 
+      (inv.member_its || '').includes(query) || 
+      (inv.hof_its || '').includes(query) || 
+      (inv.mobile || '').includes(query) || 
+      (inv.users?.display_name || '').toLowerCase().includes(query)
+    if (!matchesQuery) return false
+
+    if (filterType === 'added') {
+      // In Phase 1 or not yet sent
+      return !['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(inv.invitation_status)
+    }
+    if (filterType === 'sent') {
+      return ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(inv.invitation_status)
+    }
+    if (filterType === 'rsvp') {
+      return ['RSVP Sent', 'RSVPed', 'Confirmed', 'Attending', 'Declined', 'Not Attending'].includes(inv.invitation_status) ||
+             (inv.invitation_member_events || []).some(me => me.rsvp_status && me.rsvp_status !== 'Pending')
+    }
+    return true
+  })
+
   return (
     <Card className="p-5 sm:p-6">
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="font-display text-xl font-semibold text-emerald-deep">All Invitations</h2>
-        <Input placeholder="Search family or mobile…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
-      </div>
-      {filtered.length === 0 ? <EmptyState icon="✉" title="No invitations yet" /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
-                <th className="py-2 px-2">Family</th><th className="py-2 px-2">Members</th><th className="py-2 px-2">Events</th><th className="py-2 px-2">Invited By</th><th className="py-2 px-2">Recipient</th><th className="py-2 px-2">Status</th><th className="py-2 px-2">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((i) => (
-                <tr key={i.id} className="border-b border-ivory-line last:border-0">
-                  <td className="py-3 px-2 font-medium">{i.surname}</td>
-                  <td className="py-3 px-2">{i.invitee_ids.length}</td>
-                  <td className="py-3 px-2">{i.event_names}</td>
-                  <td className="py-3 px-2 font-medium text-emerald-deep">{i.invited_by}</td>
-                  <td className="py-3 px-2">{i.recipient_name}</td>
-                  <td className="py-3 px-2"><Badge tone={i.status}>{i.status}</Badge></td>
-                  <td className="py-3 px-2 text-xs text-ink/50">{new Date(i.created_at).toLocaleDateString('en-IN')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-5 gap-4">
+        <div>
+          <h2 className="font-display text-xl font-semibold text-emerald-deep">
+            {filterType === 'added' ? `Added Invitees (${filteredInvitees.length})` : `Invitations & Invitees (${filterType === 'all' ? invitations.length : filteredInvs.length})`}
+          </h2>
+          <p className="text-xs text-ink/50 mt-0.5">Filter by invitation lifecycle stage: newly added, invitation sent, or RSVP sent.</p>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filter Pills */}
+          <div className="inline-flex bg-ivory-soft p-1 rounded-lg border border-ivory-line text-xs font-medium">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1.5 rounded-md transition ${filterType === 'all' ? 'bg-emerald-deep text-white shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+            >
+              All Invitations
+            </button>
+            <button
+              onClick={() => setFilterType('added')}
+              className={`px-3 py-1.5 rounded-md transition ${filterType === 'added' ? 'bg-emerald-deep text-white shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+            >
+              📝 Added Invitees ({invitees.filter(i => !['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.invitation_status)).length})
+            </button>
+            <button
+              onClick={() => setFilterType('sent')}
+              className={`px-3 py-1.5 rounded-md transition ${filterType === 'sent' ? 'bg-emerald-deep text-white shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+            >
+              📤 Invitation Sent ({invitations.filter(i => ['Sent', 'WhatsApp Opened', 'RSVP Sent', 'RSVPed'].includes(i.status)).length})
+            </button>
+            <button
+              onClick={() => setFilterType('rsvp')}
+              className={`px-3 py-1.5 rounded-md transition ${filterType === 'rsvp' ? 'bg-emerald-deep text-white shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+            >
+              ✉️ RSVP Sent ({invitations.filter(i => ['RSVP Sent', 'RSVPed'].includes(i.status)).length})
+            </button>
+          </div>
+
+          <Input 
+            placeholder="Search name, ITS, mobile…" 
+            value={q} 
+            onChange={(e) => setQ(e.target.value)} 
+            className="w-full sm:w-56 text-xs h-9" 
+          />
+        </div>
+      </div>
+
+      {filterType === 'added' ? (
+        /* Table of Individual Added Invitees (Phase 1) */
+        filteredInvitees.length === 0 ? (
+          <EmptyState icon="📝" title="No added invitees match" description="When couples add guests in Phase 1, they will appear here even before an invitation card is sent." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[760px]">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line bg-ivory-soft/40">
+                  <th className="py-2.5 px-3">Member Name</th>
+                  <th className="py-2.5 px-3">Family / HOF</th>
+                  <th className="py-2.5 px-3">ITS</th>
+                  <th className="py-2.5 px-3">Mobile</th>
+                  <th className="py-2.5 px-3">Added By</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Added On</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ivory-line">
+                {filteredInvitees.map((m) => (
+                  <tr key={m.id} className="hover:bg-ivory-soft/30 transition">
+                    <td className="py-3 px-3 font-medium text-ink">
+                      <div>{m.full_name}</div>
+                      {m.relationship && <div className="text-[11px] text-ink/45">{m.relationship}</div>}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-medium text-emerald-deep">{m.surname} Family</div>
+                      <div className="text-[11px] font-mono text-ink/40">HOF: {m.hof_its}</div>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-xs text-ink/70">{m.member_its}</td>
+                    <td className="py-3 px-3 font-mono text-xs">{m.mobile || '—'}</td>
+                    <td className="py-3 px-3 font-medium text-emerald-deep">
+                      {m.users?.display_name || m.users?.username || 'Couple'}
+                    </td>
+                    <td className="py-3 px-3">
+                      <Badge tone={m.invitation_status}>{m.invitation_status || 'Added'}</Badge>
+                    </td>
+                    <td className="py-3 px-3 text-xs text-ink/50">
+                      {new Date(m.created_at).toLocaleDateString('en-IN')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : (
+        /* Table of Invitations (Phase 2 & 3 & 4) */
+        filteredInvs.length === 0 ? (
+          <EmptyState icon="✉" title="No invitations match" description="Invitations created by couples or TNC will appear here." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[760px]">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line bg-ivory-soft/40">
+                  <th className="py-2.5 px-3">Family</th>
+                  <th className="py-2.5 px-3">Members</th>
+                  <th className="py-2.5 px-3">Events</th>
+                  <th className="py-2.5 px-3">Invited By</th>
+                  <th className="py-2.5 px-3">Recipient</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ivory-line">
+                {filteredInvs.map((i) => (
+                  <tr key={i.id} className="hover:bg-ivory-soft/30 transition">
+                    <td className="py-3 px-3 font-medium text-ink">{i.surname}</td>
+                    <td className="py-3 px-3">{i.invitee_ids.length}</td>
+                    <td className="py-3 px-3 text-xs">{i.event_names}</td>
+                    <td className="py-3 px-3 font-medium text-emerald-deep">{i.invited_by}</td>
+                    <td className="py-3 px-3">
+                      <div>{i.recipient_name}</div>
+                      <div className="text-[11px] font-mono text-ink/45">{i.recipient_mobile}</div>
+                    </td>
+                    <td className="py-3 px-3"><Badge tone={i.status}>{i.status}</Badge></td>
+                    <td className="py-3 px-3 text-xs text-ink/50">{new Date(i.created_at).toLocaleDateString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
     </Card>
   )

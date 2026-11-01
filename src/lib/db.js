@@ -745,7 +745,8 @@ export async function getAllInvitations() {
 export async function getAllInvitees() {
   const { data: invitees, error } = await supabase
     .from('invitees')
-    .select('*')
+    .select('*, users(display_name, username, role), invitation_member_events(rsvp_status, events(id, event_name))')
+    .order('created_at', { ascending: false })
   if (error) return []
   return invitees
 }
