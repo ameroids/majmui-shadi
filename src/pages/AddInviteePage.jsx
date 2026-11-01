@@ -606,7 +606,7 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
               />
             </div>
             {selectedIds.has(m.id) && (
-              <div className="flex-1 max-w-xs flex items-center gap-1.5">
+              <div className="w-full sm:w-auto sm:max-w-xs flex items-center gap-2 mt-2 sm:mt-0">
                 <Input 
                   placeholder="10-digit mobile number" 
                   value={memberMobiles[m.id] || ''} 
@@ -615,7 +615,7 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
                     const val = e.target.value.replace(/\D/g, '').slice(0, 10)
                     setMemberMobiles(prev => ({ ...prev, [m.id]: val }))
                   }} 
-                  className="h-8 text-sm flex-1"
+                  className="h-10 sm:h-8 text-sm flex-1 min-w-0"
                   inputMode="numeric"
                 />
                 <button
@@ -627,10 +627,10 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
                       setMemberMobiles(prev => ({ ...prev, [m.id]: picked }))
                     }
                   }}
-                  className="h-8 px-2 rounded-lg border border-ivory-line bg-ivory-soft hover:bg-emerald/10 text-emerald-deep text-xs font-medium flex items-center gap-1 shrink-0 transition shadow-2xs"
+                  className="h-10 sm:h-8 px-3 sm:px-2 rounded-lg border border-emerald-deep/20 bg-emerald-soft/50 hover:bg-emerald/15 active:scale-95 text-emerald-deep text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition shadow-2xs touch-manipulation"
                 >
-                  <span className="text-sm">📱</span>
-                  <span className="hidden sm:inline text-[11px]">Contacts</span>
+                  <span className="text-base sm:text-sm">📱</span>
+                  <span className="text-xs sm:text-[11px]">Contacts</span>
                 </button>
               </div>
             )}
@@ -686,14 +686,14 @@ function ManualEntryForm({
                 <Input value={m.full_name} onChange={(e) => updateManualRow(m.key, 'full_name', e.target.value)} />
               </Field>
               <Field label="Mobile Number (10 digits)">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Input 
                     value={m.mobile} 
                     maxLength={10}
                     onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))} 
                     inputMode="numeric" 
                     placeholder="98XXXXXXXX" 
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                   />
                   <button
                     type="button"
@@ -704,10 +704,10 @@ function ManualEntryForm({
                         updateManualRow(m.key, 'mobile', picked)
                       }
                     }}
-                    className="h-10 px-2.5 rounded-lg border border-ivory-line bg-white hover:bg-emerald/10 text-emerald-deep text-xs font-medium flex items-center gap-1 shrink-0 transition shadow-2xs"
+                    className="h-10 px-3 sm:px-2.5 rounded-lg border border-emerald-deep/20 bg-emerald-soft/50 hover:bg-emerald/15 active:scale-95 text-emerald-deep text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition shadow-2xs touch-manipulation"
                   >
-                    <span className="text-sm">📱</span>
-                    <span className="hidden sm:inline text-[11px]">Contacts</span>
+                    <span className="text-base sm:text-sm">📱</span>
+                    <span className="text-xs sm:text-[11px]">Contacts</span>
                   </button>
                 </div>
               </Field>
