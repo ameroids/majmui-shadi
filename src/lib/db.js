@@ -752,14 +752,32 @@ export async function getAllInvitees() {
 }
 
 export async function getBridesAndGrooms() {
-  const { data: users, error } = await supabase
-    .from('users')
-    .select('id, username, display_name, role, extra_thaals, total_amount_due, amount_collected, payment_method, payment_date, installments')
-    .in('role', ['bride', 'groom'])
-    .order('display_name', { ascending: true })
+  const [{ data: users, error }, { data: invitees }] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, username, display_name, role, extra_thaals, total_amount_due, amount_collected, payment_method, payment_date, installments')
+      .in('role', ['bride', 'groom'])
+      .order('display_name', { ascending: true }),
+    supabase
+      .from('invitees')
+      .select('id, bride_groom_user_id')
+  ])
   
   if (error) return []
-  return users
+
+  const countsMap = {}
+  if (invitees) {
+    invitees.forEach(inv => {
+      if (inv.bride_groom_user_id) {
+        countsMap[inv.bride_groom_user_id] = (countsMap[inv.bride_groom_user_id] || 0) + 1
+      }
+    })
+  }
+
+  return users.map(u => ({
+    ...u,
+    current_invitees_count: countsMap[u.id] || 0
+  }))
 }
 
 // --------------------------- Master Data (Families & Events) -------------------------------------------

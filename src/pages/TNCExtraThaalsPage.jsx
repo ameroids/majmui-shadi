@@ -75,6 +75,7 @@ export default function TNCExtraThaalsPage() {
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-ink/45 border-b border-ivory-line">
                   <th className="py-3 px-2">Bride/Groom</th>
+                  <th className="py-3 px-2 text-center">Current Count</th>
                   <th className="py-3 px-2 text-center">Extra Thaals</th>
                   <th className="py-3 px-2 text-center">Extra People Allowed</th>
                 </tr>
@@ -82,9 +83,23 @@ export default function TNCExtraThaalsPage() {
               <tbody>
                 {bridesGrooms.map(u => {
                   const extra = u.extra_thaals || 0
+                  const currentCount = u.current_invitees_count || 0
+                  const allowedLimit = 280 + (extra * 8)
+                  const isOverLimit = currentCount > 280
+
                   return (
                     <tr key={u.id} className="border-b border-ivory-line last:border-0 hover:bg-ivory-soft/30 transition">
                       <td className="py-3 px-2 font-medium">{u.display_name} <span className="text-xs text-ink/40 ml-1">({u.role})</span></td>
+                      <td className="py-3 px-2 text-center font-semibold text-ink">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          isOverLimit 
+                            ? 'bg-rose-100 text-rose-700 border border-rose-300' 
+                            : 'bg-emerald-deep/10 text-emerald-deep'
+                        }`}>
+                          {isOverLimit && <span className="text-rose-600 font-bold">⚠️</span>}
+                          {currentCount} {currentCount === 1 ? 'person' : 'people'}
+                        </span>
+                      </td>
                       <td className="py-3 px-2 text-center font-semibold text-emerald-deep">
                         <div className="flex items-center justify-center gap-2">
                           <button 
