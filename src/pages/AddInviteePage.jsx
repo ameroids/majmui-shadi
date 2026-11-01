@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { searchFamiliesByName, getFamilyWithMembersById, createManualFamily, updateManualFamily, checkExistingMembersByIts, saveInvitees, getFamiliesWithInviteesForUser, removeInvitee, getGlobalPhaseVisibility } from '../lib/db'
 import Modal from '../components/ui/Modal'
+import { pickContactNumber, isContactPickerSupported } from '../lib/contactPicker'
 
 const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: '⌂' },
@@ -605,7 +606,7 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
               />
             </div>
             {selectedIds.has(m.id) && (
-              <div className="flex-1 max-w-xs">
+              <div className="flex-1 max-w-xs flex items-center gap-1.5">
                 <Input 
                   placeholder="10-digit mobile number" 
                   value={memberMobiles[m.id] || ''} 
@@ -614,9 +615,23 @@ function FamilyResult({ family, selectedIds, onToggle, memberMobiles, setMemberM
                     const val = e.target.value.replace(/\D/g, '').slice(0, 10)
                     setMemberMobiles(prev => ({ ...prev, [m.id]: val }))
                   }} 
-                  className="h-8 text-sm"
+                  className="h-8 text-sm flex-1"
                   inputMode="numeric"
                 />
+                <button
+                  type="button"
+                  title="Pick contact from phone"
+                  onClick={async () => {
+                    const picked = await pickContactNumber()
+                    if (picked) {
+                      setMemberMobiles(prev => ({ ...prev, [m.id]: picked }))
+                    }
+                  }}
+                  className="h-8 px-2 rounded-lg border border-ivory-line bg-ivory-soft hover:bg-emerald/10 text-emerald-deep text-xs font-medium flex items-center gap-1 shrink-0 transition shadow-2xs"
+                >
+                  <span className="text-sm">📱</span>
+                  <span className="hidden sm:inline text-[11px]">Contacts</span>
+                </button>
               </div>
             )}
             {alreadyInvited.has(m.id) && <Badge tone="Ready">Added</Badge>}
@@ -671,13 +686,30 @@ function ManualEntryForm({
                 <Input value={m.full_name} onChange={(e) => updateManualRow(m.key, 'full_name', e.target.value)} />
               </Field>
               <Field label="Mobile Number (10 digits)">
-                <Input 
-                  value={m.mobile} 
-                  maxLength={10}
-                  onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))} 
-                  inputMode="numeric" 
-                  placeholder="98XXXXXXXX" 
-                />
+                <div className="flex items-center gap-1.5">
+                  <Input 
+                    value={m.mobile} 
+                    maxLength={10}
+                    onChange={(e) => updateManualRow(m.key, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))} 
+                    inputMode="numeric" 
+                    placeholder="98XXXXXXXX" 
+                    className="flex-1"
+                  />
+                  <button
+                    type="button"
+                    title="Pick contact from phone"
+                    onClick={async () => {
+                      const picked = await pickContactNumber()
+                      if (picked) {
+                        updateManualRow(m.key, 'mobile', picked)
+                      }
+                    }}
+                    className="h-10 px-2.5 rounded-lg border border-ivory-line bg-white hover:bg-emerald/10 text-emerald-deep text-xs font-medium flex items-center gap-1 shrink-0 transition shadow-2xs"
+                  >
+                    <span className="text-sm">📱</span>
+                    <span className="hidden sm:inline text-[11px]">Contacts</span>
+                  </button>
+                </div>
               </Field>
               <Field label="ITS (8 digits)" required>
                 <Input 
